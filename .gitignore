@@ -1,0 +1,34 @@
+# Visual Studio and MSBuild output
+.vs/
+build/
+dist/
+Debug/
+Release/
+*.obj
+*.pdb
+*.idb
+*.ilk
+*.tlog
+*.lastbuildstate
+*.VC.db
+*.VC.VC.opendb
+*.suo
+*.user
+
+# Editors and operating-system metadata
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Local credentials and confidential exports
+.env
+.env.*
+*.env
+secrets/
+licenses.txt
+certificates.txt
+cleanup.log
+report.json
+CryptoProCertificates-*/
+CryptoProBackup-*/

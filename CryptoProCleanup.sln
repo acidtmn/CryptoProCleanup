@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "CryptoProCleanup", "CryptoProCleanup.vcxproj", "{4F4EAB45-CC51-451B-8298-7904B312DF4A}"
+EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "CryptoProCleanupTests", "CryptoProCleanupTests.vcxproj", "{12A1286B-DF22-4CA5-98F8-ACAB826E64AE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4F4EAB45-CC51-451B-8298-7904B312DF4A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4F4EAB45-CC51-451B-8298-7904B312DF4A}.Debug|Win32.Build.0 = Debug|Win32
+		{4F4EAB45-CC51-451B-8298-7904B312DF4A}.Release|Win32.ActiveCfg = Release|Win32
+		{4F4EAB45-CC51-451B-8298-7904B312DF4A}.Release|Win32.Build.0 = Release|Win32
+		{12A1286B-DF22-4CA5-98F8-ACAB826E64AE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{12A1286B-DF22-4CA5-98F8-ACAB826E64AE}.Debug|Win32.Build.0 = Debug|Win32
+		{12A1286B-DF22-4CA5-98F8-ACAB826E64AE}.Release|Win32.ActiveCfg = Release|Win32
+		{12A1286B-DF22-4CA5-98F8-ACAB826E64AE}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

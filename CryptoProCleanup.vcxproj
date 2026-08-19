@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{4F4EAB45-CC51-451B-8298-7904B312DF4A}</ProjectGuid>
+    <RootNamespace>CryptoProCleanup</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType><UseDebugLibraries>true</UseDebugLibraries><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType><UseDebugLibraries>false</UseDebugLibraries><PlatformToolset>v143</PlatformToolset><WholeProgramOptimization>true</WholeProgramOptimization><CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup><OutDir>$(MSBuildThisFileDirectory)build\$(Configuration)\</OutDir><IntDir>$(MSBuildThisFileDirectory)build\obj\$(ProjectName)\$(Configuration)\</IntDir><TargetName>CryptoProCleanup</TargetName></PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile><WarningLevel>Level4</WarningLevel><SDLCheck>true</SDLCheck><PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x0601;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><ConformanceMode>true</ConformanceMode><LanguageStandard>stdcpp17</LanguageStandard><RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary><AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions></ClCompile>
+    <Link><SubSystem>Windows</SubSystem><GenerateDebugInformation>true</GenerateDebugInformation><UACExecutionLevel>RequireAdministrator</UACExecutionLevel><AdditionalDependencies>advapi32.lib;comctl32.lib;crypt32.lib;msi.lib;ole32.lib;oleaut32.lib;setupapi.lib;shell32.lib;shlwapi.lib;taskschd.lib;user32.lib;version.lib;wintrust.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>/SUBSYSTEM:WINDOWS,6.01 %(AdditionalOptions)</AdditionalOptions></Link>
+    <Manifest><AdditionalManifestFiles>src\app.manifest</AdditionalManifestFiles></Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile><WarningLevel>Level4</WarningLevel><FunctionLevelLinking>true</FunctionLevelLinking><IntrinsicFunctions>true</IntrinsicFunctions><SDLCheck>true</SDLCheck><PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x0601;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><ConformanceMode>true</ConformanceMode><LanguageStandard>stdcpp17</LanguageStandard><RuntimeLibrary>MultiThreaded</RuntimeLibrary><AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions></ClCompile>
+    <Link><SubSystem>Windows</SubSystem><EnableCOMDATFolding>true</EnableCOMDATFolding><OptimizeReferences>true</OptimizeReferences><GenerateDebugInformation>true</GenerateDebugInformation><UACExecutionLevel>RequireAdministrator</UACExecutionLevel><AdditionalDependencies>advapi32.lib;comctl32.lib;crypt32.lib;msi.lib;ole32.lib;oleaut32.lib;setupapi.lib;shell32.lib;shlwapi.lib;taskschd.lib;user32.lib;version.lib;wintrust.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>/SUBSYSTEM:WINDOWS,6.01 %(AdditionalOptions)</AdditionalOptions></Link>
+    <Manifest><AdditionalManifestFiles>src\app.manifest</AdditionalManifestFiles></Manifest>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="src\cleanup.hpp" /><ClInclude Include="src\resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\core.cpp" /><ClCompile Include="src\certificates.cpp" /><ClCompile Include="src\offline.cpp" /><ClCompile Include="src\gui.cpp" /><ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup><ResourceCompile Include="src\resources.rc" /></ItemGroup>
+  <ItemGroup><Manifest Include="src\app.manifest" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

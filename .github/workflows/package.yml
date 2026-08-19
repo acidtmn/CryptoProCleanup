@@ -1,0 +1,37 @@
+name: Package release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version written into archive names
+        required: true
+        default: 0.3.0
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build, test, hash, and package
+        shell: pwsh
+        run: .\scripts\package.ps1 -Version '${{ inputs.version }}'
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: CryptoProCleanup-${{ inputs.version }}-win32
+          path: dist/CryptoProCleanup-${{ inputs.version }}-win32.zip
+          if-no-files-found: error
+          retention-days: 30
