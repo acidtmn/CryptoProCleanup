@@ -85,6 +85,6 @@ Author: **Kirill Alexandrov** · [kodalexandrova.ru](https://kodalexandrova.ru)
 
 The source code is available under the [MIT License](LICENSE). The software is provided “as is”, without warranty. CryptoPro names belong to their respective owners; this project is unaffiliated.
 
-[![Support via YooMoney](https://img.shields.io/badge/YooMoney-Support%20the%20project-8B3FFD?style=for-the-badge)](https://yoomoney.ru/quickpay/fundraise/button?billNumber=1BQ9GCKEQDM.250729&)
+[![Support via YooMoney](https://img.shields.io/badge/YooMoney-Support%20the%20project-8B3FFD?style=for-the-badge)](https://yoomoney.ru/to/4100119195083142)
 
 Russian documentation: [README.md](README.md).

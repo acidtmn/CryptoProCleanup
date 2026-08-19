@@ -2,6 +2,13 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
+## [0.3.0-rc2] - 2026-08-19
+
+### Changed
+
+- Replaced the YooMoney support destination in the Russian and English README.
+- Added a localized “Support the project” link to the application footer alongside GitHub and the author website.
+
 ## [0.3.0-rc1] - 2026-08-19
 
 ### Added

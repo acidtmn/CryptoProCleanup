@@ -47,6 +47,7 @@ BEGIN
 
     CONTROL         "<a href=""https://github.com/acidtmn/CryptoProCleanup"">GitHub</a>", IDC_LINK_GITHUB, WC_LINK, WS_TABSTOP, 10, 498, 132, 15
     CONTROL         "<a href=""https://kodalexandrova.ru"">Code Alexandrov website</a>", IDC_LINK_WEBSITE, WC_LINK, WS_TABSTOP, 150, 498, 220, 15
+    CONTROL         "<a href=""https://yoomoney.ru/to/4100119195083142"">Support the project</a>", IDC_LINK_SUPPORT, WC_LINK, WS_TABSTOP, 390, 498, 220, 15
     CONTROL         "", IDC_PROGRESS, PROGRESS_CLASS, PBS_SMOOTH, 10, 521, 740, 10
     LTEXT           "Ready", IDC_STATUS, 10, 535, 740, 13
     EDITTEXT        IDC_LOG, 10, 550, 740, 48, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_BORDER

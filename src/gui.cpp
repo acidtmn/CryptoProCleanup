@@ -47,9 +47,9 @@ struct LicenseDialogState {
 void SetText(HWND dialog, int id, const std::wstring& text) { SetWindowTextW(GetDlgItem(dialog, id), text.c_str()); }
 
 void OpenProjectLink(const AppState& state, int controlId) {
-    const wchar_t* url = controlId == IDC_LINK_GITHUB
-        ? L"https://github.com/acidtmn/CryptoProCleanup"
-        : L"https://kodalexandrova.ru";
+    const wchar_t* url = L"https://yoomoney.ru/to/4100119195083142";
+    if (controlId == IDC_LINK_GITHUB) url = L"https://github.com/acidtmn/CryptoProCleanup";
+    else if (controlId == IDC_LINK_WEBSITE) url = L"https://kodalexandrova.ru";
     const auto result = reinterpret_cast<INT_PTR>(
         ShellExecuteW(state.window, L"open", url, nullptr, nullptr, SW_SHOWNORMAL));
     if (result <= 32) {
@@ -341,6 +341,9 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_LINK_WEBSITE, Tr(state.language,
         L"<a href=\"https://kodalexandrova.ru\">Сайт «Код Александрова»</a>",
         L"<a href=\"https://kodalexandrova.ru\">Code Alexandrov website</a>"));
+    SetText(state.window, IDC_LINK_SUPPORT, Tr(state.language,
+        L"<a href=\"https://yoomoney.ru/to/4100119195083142\">Поддержать проект</a>",
+        L"<a href=\"https://yoomoney.ru/to/4100119195083142\">Support the project</a>"));
     SetText(state.window, IDC_PRODUCTS_LABEL, Tr(state.language, L"Обнаруженные продукты", L"Detected products"));
     SetText(state.window, IDC_PROFILES_LABEL, Tr(state.language, L"Локальные профили для очистки настроек", L"Local profiles whose settings may be cleaned"));
     SetText(state.window, IDC_SELECT_ALL_PROFILES, Tr(state.language, L"Выбрать все профили", L"Select all profiles"));
@@ -945,7 +948,8 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
     if (message == WM_NOTIFY) {
         const auto* header = reinterpret_cast<NMHDR*>(lParam);
         if (header && (header->code == NM_CLICK || header->code == NM_RETURN) &&
-            (header->idFrom == IDC_LINK_GITHUB || header->idFrom == IDC_LINK_WEBSITE)) {
+            (header->idFrom == IDC_LINK_GITHUB || header->idFrom == IDC_LINK_WEBSITE ||
+             header->idFrom == IDC_LINK_SUPPORT)) {
             OpenProjectLink(*state, static_cast<int>(header->idFrom));
             return TRUE;
         }

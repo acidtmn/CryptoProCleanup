@@ -125,4 +125,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1
 
 Исходный код распространяется по лицензии [MIT](LICENSE). Программа предоставляется «как есть», без гарантий. CryptoPro и «КриптоПро» являются обозначениями соответствующих правообладателей; проект с ними не связан.
 
-[![Поддержать проект через ЮMoney](https://img.shields.io/badge/ЮMoney-Поддержать%20проект-8B3FFD?style=for-the-badge)](https://yoomoney.ru/quickpay/fundraise/button?billNumber=1BQ9GCKEQDM.250729&)
+[![Поддержать проект через ЮMoney](https://img.shields.io/badge/ЮMoney-Поддержать%20проект-8B3FFD?style=for-the-badge)](https://yoomoney.ru/to/4100119195083142)
