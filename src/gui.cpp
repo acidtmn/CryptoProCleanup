@@ -28,6 +28,12 @@ struct OfflineProgressMessage {
     int percent = 0;
 };
 
+enum class SummaryKind {
+    None,
+    LiveScan,
+    OfflineScan
+};
+
 struct AppState {
     HWND window = nullptr;
     Language language = Language::English;
@@ -49,6 +55,8 @@ struct AppState {
     bool busy = false;
     bool offlineScanRunning = false;
     std::thread offlineScanThread;
+    SummaryKind summaryKind = SummaryKind::None;
+    Language summaryLanguage = Language::English;
 };
 
 struct ConfirmState {
@@ -242,6 +250,56 @@ void AddLogLine(AppState& state, const std::wstring& line) {
     const std::wstring text = (length ? L"\r\n" : L"") + line;
     SendMessageW(log, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(text.c_str()));
     if (!state.logPath.empty()) AppendLog(state.logPath, line);
+}
+
+std::wstring LiveScanSummary(const AppState& state) {
+    std::wostringstream summary;
+    summary << Tr(state.language, L"Найдено продуктов: ", L"Products found: ") << state.scan.products.size()
+            << Tr(state.language, L", лицензий: ", L", licenses: ") << state.scan.licenses.size()
+            << Tr(state.language, L", открытых сертификатов: ", L", public certificates: ")
+            << state.scan.certificates.size();
+    return summary.str();
+}
+
+std::wstring OfflineScanSummary(const AppState& state) {
+    if (!state.offline.valid)
+        return Tr(state.language, L"Офлайн-система не распознана.",
+                                  L"Offline system was not recognized.");
+    std::wostringstream summary;
+    summary << Tr(state.language, L"Офлайн: продуктов ", L"Offline: products ") << state.offline.scan.products.size()
+            << Tr(state.language, L", лицензий ", L", licenses ") << state.offline.scan.licenses.size()
+            << Tr(state.language, L", профилей ", L", profiles ") << state.offline.scan.profiles.size()
+            << Tr(state.language, L", открытых сертификатов ", L", public certificates ") << state.offline.scan.certificates.size()
+            << Tr(state.language, L", подтверждённых целей ", L", verified targets ") << state.offline.targets.size()
+            << (state.offline.cleanupCapable ? Tr(state.language, L", очистка доступна", L", cleanup available")
+                                             : Tr(state.language, L", только спасение данных", L", rescue only"));
+    return summary.str();
+}
+
+void RefreshLocalizedSummary(AppState& state) {
+    if (state.summaryKind == SummaryKind::None || !state.logPath.empty()) return;
+    const bool live = state.summaryKind == SummaryKind::LiveScan;
+    const std::wstring summary = live ? LiveScanSummary(state) : OfflineScanSummary(state);
+    const auto& warnings = live ? state.scan.warnings : state.offline.scan.warnings;
+    std::wstring logText = summary;
+    if (!warnings.empty() && state.summaryLanguage != state.language) {
+        logText += L"\r\n" + Tr(state.language,
+            L"Примечание: предупреждения ниже сформированы до переключения языка. Для их перевода повторите сканирование.",
+            L"Note: the warnings below were generated before the language switch. Scan again to translate them.");
+    }
+    for (const auto& warning : warnings) logText += L"\r\n" + warning;
+    SetWindowTextW(GetDlgItem(state.window, IDC_LOG), logText.c_str());
+    if (live) {
+        SetText(state.window, IDC_STATUS,
+                Tr(state.language, L"Готово. Изменения не выполнялись.",
+                                   L"Ready. No changes were made."));
+    } else if (state.offline.valid) {
+        SetText(state.window, IDC_STATUS,
+                Tr(state.language, L"Офлайн-сканирование завершено. Изменения не выполнялись.",
+                                   L"Offline scan completed. No changes were made."));
+    } else {
+        SetText(state.window, IDC_STATUS, summary);
+    }
 }
 
 std::wstring DefaultBackupFolder() {
@@ -483,7 +541,11 @@ void UpdateTabVisibility(AppState& state) {
     for (const int id : offlineControls) ShowWindow(GetDlgItem(state.window, id), selected == 2 ? SW_SHOW : SW_HIDE);
 }
 
+void ReadSelections(AppState& state);
+void ReadOfflineSelections(AppState& state);
+
 void ApplyLanguage(AppState& state) {
+    SendMessageW(state.window, WM_SETREDRAW, FALSE, 0);
     const bool ru = state.language == Language::Russian;
     const std::wstring applicationName = ru ? L"КриптоПро Очистка" : L"CryptoPro Cleanup Utility";
     const std::wstring versionedName = applicationName + L" " + kVersion;
@@ -544,6 +606,10 @@ void ApplyLanguage(AppState& state) {
     if (!state.scan.products.empty() || !state.scan.profiles.empty() || !state.scan.certificates.empty()) PopulateLists(state);
     if (state.offline.valid) PopulateOfflineLists(state);
     UpdateTabVisibility(state);
+    RefreshLocalizedSummary(state);
+    SendMessageW(state.window, WM_SETREDRAW, TRUE, 0);
+    RedrawWindow(state.window, nullptr, nullptr,
+                 RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 void SetBusy(AppState& state, bool busy) {
@@ -810,23 +876,15 @@ void ReadOfflineSelections(AppState& state) {
 void FinishOfflineScan(AppState& state, OfflineScanResult&& result) {
     state.offline = std::move(result);
     PopulateOfflineLists(state);
-    std::wostringstream summary;
     if (state.offline.valid) {
         SetText(state.window, IDC_OFFLINE_PATH, state.offline.windowsDirectory);
-        summary << Tr(state.language, L"Офлайн: продуктов ", L"Offline: products ") << state.offline.scan.products.size()
-                << Tr(state.language, L", лицензий ", L", licenses ") << state.offline.scan.licenses.size()
-                << Tr(state.language, L", профилей ", L", profiles ") << state.offline.scan.profiles.size()
-                << Tr(state.language, L", открытых сертификатов ", L", public certificates ") << state.offline.scan.certificates.size()
-                << Tr(state.language, L", подтверждённых целей ", L", verified targets ") << state.offline.targets.size()
-                << (state.offline.cleanupCapable ? Tr(state.language, L", очистка доступна", L", cleanup available")
-                                                 : Tr(state.language, L", только спасение данных", L", rescue only"));
-        UpdateProgress(state, Tr(state.language, L"Офлайн-сканирование завершено. Изменения не выполнялись.", L"Offline scan completed. No changes were made."), 100);
-    } else {
-        summary << Tr(state.language, L"Офлайн-система не распознана.", L"Offline system was not recognized.");
-        UpdateProgress(state, summary.str(), 100);
     }
-    AddLogLine(state, summary.str());
-    for (const auto& warning : state.offline.scan.warnings) AddLogLine(state, warning);
+    state.summaryKind = SummaryKind::OfflineScan;
+    state.summaryLanguage = state.language;
+    SendDlgItemMessageW(state.window, IDC_PROGRESS, PBM_SETPOS, 100, 0);
+    RefreshLocalizedSummary(state);
+    RedrawWindow(state.window, nullptr, nullptr,
+                 RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     SetBusy(state, false);
     if (!state.offline.valid || (state.offline.scan.products.empty() && state.offline.scan.certificates.empty()))
         ShowOfflineDiagnostics(state);
@@ -970,13 +1028,12 @@ void DoScan(AppState& state) {
     SetWindowTextW(GetDlgItem(state.window, IDC_LOG), L"");
     state.scan = ScanSystem(state.language, [&](const std::wstring& message, int percent) { UpdateProgress(state, message, percent); });
     PopulateLists(state);
-    std::wostringstream summary;
-    summary << Tr(state.language, L"Найдено продуктов: ", L"Products found: ") << state.scan.products.size()
-            << Tr(state.language, L", лицензий: ", L", licenses: ") << state.scan.licenses.size()
-            << Tr(state.language, L", открытых сертификатов: ", L", public certificates: ") << state.scan.certificates.size();
-    AddLogLine(state, summary.str());
-    for (const auto& warning : state.scan.warnings) AddLogLine(state, warning);
-    UpdateProgress(state, Tr(state.language, L"Готово. Изменения не выполнялись.", L"Ready. No changes were made."), 100);
+    state.summaryKind = SummaryKind::LiveScan;
+    state.summaryLanguage = state.language;
+    SendDlgItemMessageW(state.window, IDC_PROGRESS, PBM_SETPOS, 100, 0);
+    RefreshLocalizedSummary(state);
+    RedrawWindow(state.window, nullptr, nullptr,
+                 RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     SetBusy(state, false);
 }
 
@@ -1120,6 +1177,15 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
         state = reinterpret_cast<AppState*>(lParam);
         state->window = dialog;
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        HINSTANCE module = GetModuleHandleW(nullptr);
+        HICON largeIcon = reinterpret_cast<HICON>(LoadImageW(
+            module, MAKEINTRESOURCEW(IDI_APP_ICON), IMAGE_ICON,
+            GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR | LR_SHARED));
+        HICON smallIcon = reinterpret_cast<HICON>(LoadImageW(
+            module, MAKEINTRESOURCEW(IDI_APP_ICON), IMAGE_ICON,
+            GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR | LR_SHARED));
+        if (largeIcon) SendMessageW(dialog, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(largeIcon));
+        if (smallIcon) SendMessageW(dialog, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(smallIcon));
         SendDlgItemMessageW(dialog, IDC_PROGRESS, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
         HWND language = GetDlgItem(dialog, IDC_LANGUAGE);
         ComboBox_AddString(language, L"Русский");
@@ -1198,6 +1264,8 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
         switch (LOWORD(wParam)) {
             case IDC_LANGUAGE:
                 if (HIWORD(wParam) == CBN_SELCHANGE && !state->busy) {
+                    ReadSelections(*state);
+                    ReadOfflineSelections(*state);
                     state->language = ComboBox_GetCurSel(GetDlgItem(dialog, IDC_LANGUAGE)) == 0 ? Language::Russian : Language::English;
                     ApplyLanguage(*state);
                 }

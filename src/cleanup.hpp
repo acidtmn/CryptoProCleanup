@@ -10,7 +10,7 @@
 
 namespace cpc {
 
-constexpr wchar_t kVersion[] = L"0.4.0-rc3";
+constexpr wchar_t kVersion[] = L"0.4.0-rc4";
 
 enum class Language { Russian, English };
 enum class RiskLevel { Normal, High };

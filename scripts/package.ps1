@@ -22,7 +22,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $packageRoot
 
 $sourceStage = Join-Path $packageRoot 'source'
 New-Item -ItemType Directory -Path $sourceStage -Force | Out-Null
-foreach ($directory in @('.github', 'src', 'tests', 'scripts', 'docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $directory) -Destination $sourceStage -Recurse }
+foreach ($directory in @('.github', 'assets', 'src', 'tests', 'scripts', 'docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $directory) -Destination $sourceStage -Recurse }
 foreach ($file in @('.gitattributes', '.gitignore', 'CryptoProCleanup.sln', 'CryptoProCleanup.vcxproj', 'CryptoProCleanupTests.vcxproj', 'README.md', 'README.en.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md')) { Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination $sourceStage }
 
 $sourceZip = Join-Path $packageRoot "CryptoProCleanup-$Version-source.zip"
