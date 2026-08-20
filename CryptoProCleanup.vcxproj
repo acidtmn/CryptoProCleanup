@@ -38,5 +38,7 @@
   </ItemGroup>
   <ItemGroup><ResourceCompile Include="src\resources.rc" /></ItemGroup>
   <ItemGroup><Manifest Include="src\app.manifest" /></ItemGroup>
+  <ItemGroup><Image Include="assets\CryptoProCleanup.ico" /></ItemGroup>
+  <ItemGroup><None Include="assets\app-icon-source.png" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

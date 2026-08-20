@@ -5,7 +5,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Windows 7–11](https://img.shields.io/badge/Windows-7%20SP1%E2%80%9311-0078D6.svg)](#system-requirements)
 
-> **Status: 0.4.0 RC3.** A user successfully completed full removal on a live Windows 10 x64 system. Detection of products and the complete license plus public-certificate export are now confirmed on a real connected Windows 7 x86 disk. RC3 adds responsive background scanning with live indication.
+> **Status: 0.4.0 RC4.** A user successfully completed full removal on a live Windows 10 x64 system. Detection of products and the complete license plus public-certificate export are confirmed on a real connected Windows 7 x86 disk. RC4 adds a recognizable application icon and fixes complete repaint plus bottom-summary translation when switching RU/EN.
 
 An unofficial portable utility for backing up license identifiers and public certificates, controlled removal of installed CryptoPro products, and rescue from a disconnected Windows 7 SP1 through Windows 11 installation.
 
@@ -22,6 +22,7 @@ The utility deliberately preserves Windows certificate stores, hardware tokens, 
 ## Features
 
 - native portable Unicode Win32 GUI with RU/EN languages and no .NET dependency;
+- original multi-resolution application icon for Explorer, taskbar, window chrome, and UAC;
 - resizable/maximizable native window with adaptive tables, system-DPI scaling, and Windows visual styles;
 - verified 32/64-bit product discovery by publisher and MSI/EXE metadata;
 - complete license display, clipboard copy, and confidential backup;

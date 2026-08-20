@@ -2,6 +2,24 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
+## [0.4.0-rc4] - 2026-08-20
+
+### Added
+
+- Original blue shield/cleanup application icon embedded at 16–256 pixel sizes for Explorer, the title bar, taskbar, and UAC display.
+- The transparent high-resolution icon source and multi-resolution ICO are included in the open-source package.
+
+### Fixed
+
+- RU/EN switching now redraws the dialog atomically, preventing labels, buttons, and some list headers from appearing blank until a later repaint.
+- The scan-complete status and count summary at the bottom are immediately regenerated in the selected language.
+- Product, profile, and certificate selections are preserved while translated lists are rebuilt.
+
+### Validation
+
+- Automated GUI probing confirmed that all affected captions, the status, and the product/license/certificate summary change from Russian to English immediately.
+- Both 16- and 32-pixel icon resources load successfully from the release EXE; core tests and the Release x86 build pass.
+
 ## [0.4.0-rc3] - 2026-08-20
 
 ### Changed
