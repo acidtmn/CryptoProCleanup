@@ -5,7 +5,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Windows 7–11](https://img.shields.io/badge/Windows-7%20SP1%E2%80%9311-0078D6.svg)](#system-requirements)
 
-> **Status: 0.3.0 release candidate.** Safe scanning and backup have been validated on Windows 11 with CryptoPro CSP 5.0. The complete VM matrix, especially Windows 7, CSP 4.x, and destructive disconnected-Windows testing, remains mandatory before general availability.
+> **Status: 0.4.0 release candidate.** Safe scanning was validated on Windows 11 with CryptoPro CSP 5.0, and a user successfully completed full removal and residual cleanup on a live Windows 10 x64 system. The disconnected Windows 7 x86 fix still requires a repeat field test before general availability.
 
 An unofficial portable utility for backing up license identifiers and public certificates, controlled removal of installed CryptoPro products, and rescue from a disconnected Windows 7 SP1 through Windows 11 installation.
 
@@ -22,6 +22,7 @@ The utility deliberately preserves Windows certificate stores, hardware tokens, 
 ## Features
 
 - native portable Unicode Win32 GUI with RU/EN languages and no .NET dependency;
+- resizable/maximizable native window with adaptive tables, system-DPI scaling, and Windows visual styles;
 - verified 32/64-bit product discovery by publisher and MSI/EXE metadata;
 - complete license display, clipboard copy, and confidential backup;
 - selectable public-certificate inventory and CER/P7B export;
@@ -30,6 +31,9 @@ The utility deliberately preserves Windows certificate stores, hardware tokens, 
 - restart-safe continuation, masked JSON reporting, and a privacy-safe operation log;
 - disconnected-Windows rescue for licenses and public certificates;
 - separately confirmed, recovery-backed conservative offline cleanup.
+- explicit native-view access for cross-bitness scanning of disconnected x86/x64 Windows hives;
+- sequential `SOFTWARE`, user `NTUSER.DAT`, and `SYSTEM` loading compatible with the Windows 7 application-hive limit;
+- fallback profile discovery from `Users`, plus public certificates from user and local-machine stores.
 
 ## System requirements
 
@@ -58,7 +62,7 @@ Safe scan-only CLI:
 CryptoProCleanup.exe --scan --report C:\Temp\cryptopro-report.json --lang en
 ```
 
-Version 0.3.0 has no unattended destructive mode.
+Version 0.4.0 has no unattended destructive mode.
 
 ## Build and package
 

@@ -35,6 +35,9 @@ For each VM retain the initial JSON report, final JSON report, cleanup log, prod
 ## Recorded validation
 
 - 2026-08-19: Windows 11 x64 build 26100, CryptoPro CSP 5.0.13000 plus CryptoPro EDS Browser plug-in 2.0.15400 — unit tests and non-destructive integration scan passed. The scan found the complete MSI `InstallProperties\ProductID` through the packed ProductCode-derived path and enumerated seven public certificates from the current user's logical Personal store without exposing values or names in test output. Temporary CER/P7B export was reopened through CryptoAPI and removed. No removal was performed.
+- 2026-08-20: user field report — full installed-product removal and residual cleanup completed successfully on a live Windows 10 x64 system.
+- 2026-08-20: RC2 running on Windows 10 x64 returned zero products and certificates for a connected, bootable Windows 7 x86 disk. Version 0.4.0 now uses explicit native registry views, sequential application-hive loading, MSI Installer UserData product recovery, filesystem profile fallback, and user/machine certificate stores. A repeat test on that disk is mandatory before this scenario can pass.
+- 2026-08-20: version 0.4.0 unit tests, non-destructive integration scan, and MSVC C++ static analysis passed. The release executable was verified as x86 with OS/subsystem version 6.01, `requireAdministrator`, system-DPI awareness, Common Controls v6, and no dynamic Visual C++ runtime dependency.
 - The running Windows directory is rejected as an offline target. A destructive disconnected-Windows VM test is still pending.
 - 2026-08-19: MSVC C++ static analysis passed with no warnings. Offline scanning also compares the actual `SOFTWARE` and `SYSTEM` hive file identities so a filesystem alias to the running Windows installation is rejected.
 - Destructive scenarios and the remaining OS/CSP matrix, including CSP 4.x, are still mandatory before marking a build generally available.

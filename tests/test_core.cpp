@@ -58,7 +58,11 @@ int wmain(int argc, wchar_t** argv) {
     Expect(PackMsiProductCode(L"{50F91F80-D397-437C-B0C8-62128DE3B55E}") ==
                L"08F19F05793DC7340B8C2621D83E5BE5",
            "MSI packed product code");
+    Expect(UnpackMsiProductCode(L"08F19F05793DC7340B8C2621D83E5BE5") ==
+               L"{50F91F80-D397-437C-B0C8-62128DE3B55E}",
+           "MSI packed product code round-trip");
     Expect(PackMsiProductCode(L"not-a-guid").empty(), "Invalid MSI product code rejected");
+    Expect(UnpackMsiProductCode(L"not-a-packed-guid").empty(), "Invalid packed MSI code rejected");
 
     Expect(IsProtectedPath(L"C:\\ProgramData\\Crypto Pro\\Crypto\\keys"), "ProgramData key store protected");
     Expect(IsProtectedPath(L"C:\\Users\\alice\\AppData\\Local\\Crypto Pro"), "User key directory protected");

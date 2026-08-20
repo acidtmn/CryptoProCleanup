@@ -10,7 +10,7 @@
 
 namespace cpc {
 
-constexpr wchar_t kVersion[] = L"0.3.0";
+constexpr wchar_t kVersion[] = L"0.4.0";
 
 enum class Language { Russian, English };
 enum class RiskLevel { Normal, High };
@@ -121,6 +121,7 @@ struct OfflineScanResult {
     ScanResult scan;
     std::vector<OfflineCleanupTarget> targets;
     bool valid = false;
+    bool cleanupCapable = false;
 };
 
 struct CleanupPlan {
@@ -172,6 +173,7 @@ bool IsCryptoProName(const std::wstring& value);
 bool IsHighRiskProduct(const std::wstring& value);
 bool IsGuid(const std::wstring& value);
 std::wstring PackMsiProductCode(const std::wstring& productCode);
+std::wstring UnpackMsiProductCode(const std::wstring& packedProductCode);
 bool IsProtectedPath(const std::wstring& path);
 bool IsProtectedRegistryPath(const std::wstring& path);
 bool IsSafeVendorPath(const std::wstring& path, const std::vector<std::wstring>& approvedRoots);
@@ -183,6 +185,9 @@ void ScanUserCertificates(const std::vector<UserProfile>& profiles,
                           std::vector<CertificateEntry>* certificates,
                           std::vector<std::wstring>* warnings,
                           const ProgressCallback& progress = {});
+void ScanOfflineMachineCertificates(Language language, HKEY offlineSoftware,
+                                    std::vector<CertificateEntry>* certificates,
+                                    std::vector<std::wstring>* warnings);
 bool ExportPublicCertificates(Language language, const std::vector<CertificateEntry>& certificates,
                               const std::wstring& parentFolder, std::wstring* exportFolder,
                               std::wstring* error = nullptr);

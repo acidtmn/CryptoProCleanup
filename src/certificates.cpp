@@ -135,13 +135,12 @@ void EnumerateCertificateStore(HCERTSTORE store, const UserProfile& profile,
     }
 }
 
-void ReadCertificateStore(HKEY profileRoot, const UserProfile& profile,
-                          std::vector<CertificateEntry>* certificates,
-                          std::unordered_set<std::wstring>* seen,
-                          std::vector<std::wstring>* warnings) {
+void ReadCertificateStoreAt(HKEY root, const wchar_t* storePath, const UserProfile& profile,
+                            std::vector<CertificateEntry>* certificates,
+                            std::unordered_set<std::wstring>* seen,
+                            std::vector<std::wstring>* warnings) {
     RegKey registryStore;
-    constexpr wchar_t storePath[] = L"SOFTWARE\\Microsoft\\SystemCertificates\\My";
-    const LONG opened = RegOpenKeyExW(profileRoot, storePath, 0, KEY_READ, registryStore.put());
+    const LONG opened = RegOpenKeyExW(root, storePath, 0, KEY_READ | KEY_WOW64_64KEY, registryStore.put());
     if (opened == ERROR_FILE_NOT_FOUND || opened == ERROR_PATH_NOT_FOUND) return;
     if (opened != ERROR_SUCCESS) {
         if (warnings) warnings->push_back(L"Could not read the personal certificate store for profile: " + profile.displayName);
@@ -155,6 +154,14 @@ void ReadCertificateStore(HKEY profileRoot, const UserProfile& profile,
         return;
     }
     EnumerateCertificateStore(store.get(), profile, certificates, seen);
+}
+
+void ReadCertificateStore(HKEY profileRoot, const UserProfile& profile,
+                          std::vector<CertificateEntry>* certificates,
+                          std::unordered_set<std::wstring>* seen,
+                          std::vector<std::wstring>* warnings) {
+    ReadCertificateStoreAt(profileRoot, L"SOFTWARE\\Microsoft\\SystemCertificates\\My",
+                           profile, certificates, seen, warnings);
 }
 
 bool WriteBinaryFile(const std::wstring& path, const BYTE* data, size_t size, std::wstring* error) {
@@ -200,7 +207,8 @@ void ScanUserCertificates(const std::vector<UserProfile>& profiles,
             else if (warnings) warnings->push_back(L"CryptoAPI could not open the current user's Personal certificate store.");
             continue;
         }
-        if (profile.loaded) RegOpenKeyExW(HKEY_USERS, profile.sid.c_str(), 0, KEY_READ, profileRoot.put());
+        if (profile.loaded) RegOpenKeyExW(HKEY_USERS, profile.sid.c_str(), 0,
+                                         KEY_READ | KEY_WOW64_64KEY, profileRoot.put());
         if (!profileRoot.get()) {
             const std::wstring hive = JoinPath(profile.profilePath, L"NTUSER.DAT");
             if (!FileExists(hive) || RegLoadAppKeyW(hive.c_str(), profileRoot.put(), KEY_READ, 0, 0) != ERROR_SUCCESS) {
@@ -215,6 +223,22 @@ void ScanUserCertificates(const std::vector<UserProfile>& profiles,
         if (ToLower(left.subject) != ToLower(right.subject)) return ToLower(left.subject) < ToLower(right.subject);
         return left.thumbprint < right.thumbprint;
     });
+}
+
+void ScanOfflineMachineCertificates(Language language, HKEY offlineSoftware,
+                                    std::vector<CertificateEntry>* certificates,
+                                    std::vector<std::wstring>* warnings) {
+    if (!offlineSoftware || !certificates) return;
+    UserProfile machine;
+    machine.sid = L"S-1-5-18-OFFLINE-MACHINE";
+    machine.displayName = Tr(language, L"Локальный компьютер", L"Local computer");
+    machine.loaded = false;
+    machine.selected = true;
+    std::unordered_set<std::wstring> seen;
+    for (const auto& certificate : *certificates)
+        seen.insert(ToLower(certificate.profileSid + L"|" + certificate.thumbprint));
+    ReadCertificateStoreAt(offlineSoftware, L"Microsoft\\SystemCertificates\\My",
+                           machine, certificates, &seen, warnings);
 }
 
 bool ExportPublicCertificates(Language language, const std::vector<CertificateEntry>& certificates,
