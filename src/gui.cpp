@@ -4,6 +4,7 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <uxtheme.h>
 #include <windowsx.h>
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <sstream>
 
 namespace cpc {
@@ -30,6 +32,12 @@ struct AppState {
     std::wstring logPath;
     std::wstring resumeToken;
     std::map<int, std::pair<int, bool>> listSorts;
+    std::map<int, std::vector<int>> listColumnWeights;
+    std::map<int, RECT> initialControlRects;
+    SIZE initialClient{};
+    SIZE minimumWindow{};
+    HFONT titleFont = nullptr;
+    HBRUSH backgroundBrush = nullptr;
     bool busy = false;
 };
 
@@ -45,6 +53,134 @@ struct LicenseDialogState {
 };
 
 void SetText(HWND dialog, int id, const std::wstring& text) { SetWindowTextW(GetDlgItem(dialog, id), text.c_str()); }
+
+BOOL CALLBACK CaptureControlRect(HWND control, LPARAM parameter) {
+    auto* state = reinterpret_cast<AppState*>(parameter);
+    const int id = GetDlgCtrlID(control);
+    if (!state || id <= 0) return TRUE;
+    RECT rectangle{};
+    GetWindowRect(control, &rectangle);
+    MapWindowPoints(HWND_DESKTOP, state->window, reinterpret_cast<POINT*>(&rectangle), 2);
+    state->initialControlRects[id] = rectangle;
+    return TRUE;
+}
+
+void CaptureInitialLayout(AppState& state) {
+    RECT client{};
+    RECT window{};
+    GetClientRect(state.window, &client);
+    GetWindowRect(state.window, &window);
+    state.initialClient = {client.right - client.left, client.bottom - client.top};
+    state.minimumWindow = {window.right - window.left, window.bottom - window.top};
+    state.initialControlRects.clear();
+    EnumChildWindows(state.window, CaptureControlRect, reinterpret_cast<LPARAM>(&state));
+}
+
+void PlaceControl(AppState& state, HDWP* positions, int id,
+                  int moveX, int moveY, int growX, int growY) {
+    const auto found = state.initialControlRects.find(id);
+    HWND control = GetDlgItem(state.window, id);
+    if (found == state.initialControlRects.end() || !control) return;
+    const RECT& original = found->second;
+    const int width = std::max(1, static_cast<int>(original.right - original.left) + growX);
+    const int height = std::max(1, static_cast<int>(original.bottom - original.top) + growY);
+    if (*positions) {
+        *positions = DeferWindowPos(*positions, control, nullptr, original.left + moveX, original.top + moveY,
+                                    width, height, SWP_NOACTIVATE | SWP_NOZORDER);
+    } else {
+        MoveWindow(control, original.left + moveX, original.top + moveY, width, height, TRUE);
+    }
+}
+
+void ResizeListColumns(AppState& state, int id) {
+    const auto found = state.listColumnWeights.find(id);
+    HWND list = GetDlgItem(state.window, id);
+    if (found == state.listColumnWeights.end() || !list || found->second.empty()) return;
+    RECT client{};
+    GetClientRect(list, &client);
+    const int available = std::max(100, static_cast<int>(client.right - client.left) - GetSystemMetrics(SM_CXVSCROLL) - 4);
+    const int totalWeight = std::accumulate(found->second.begin(), found->second.end(), 0);
+    if (totalWeight <= 0) return;
+    int used = 0;
+    for (size_t index = 0; index < found->second.size(); ++index) {
+        const int width = index + 1 == found->second.size() ? std::max(40, available - used) :
+            std::max(40, (available * found->second[index]) / totalWeight);
+        ListView_SetColumnWidth(list, static_cast<int>(index), width);
+        used += width;
+    }
+}
+
+void LayoutMainDialog(AppState& state, int clientWidth, int clientHeight) {
+    if (!state.initialClient.cx || !state.initialClient.cy) return;
+    const int dx = std::max(0, clientWidth - static_cast<int>(state.initialClient.cx));
+    const int dy = std::max(0, clientHeight - static_cast<int>(state.initialClient.cy));
+    const int halfY = dy / 2;
+    HDWP positions = BeginDeferWindowPos(40);
+
+    PlaceControl(state, &positions, IDC_TITLE, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_LANGUAGE, dx, 0, 0, 0);
+    PlaceControl(state, &positions, IDC_DISCLAIMER, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_TAB, 0, 0, dx, dy);
+
+    PlaceControl(state, &positions, IDC_PRODUCTS_LABEL, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_PRODUCTS, 0, 0, dx, halfY);
+    PlaceControl(state, &positions, IDC_PROFILES_LABEL, 0, halfY, dx, 0);
+    PlaceControl(state, &positions, IDC_PROFILES, 0, halfY, dx, dy - halfY);
+    for (const int id : {IDC_SELECT_ALL_PROFILES, IDC_BACKUP_LABEL, IDC_BACKUP_INFO, IDC_SHOW_LICENSES})
+        PlaceControl(state, &positions, id, 0, dy, id == IDC_BACKUP_INFO ? dx : 0, 0);
+    PlaceControl(state, &positions, IDC_BACKUP_PATH, 0, dy, dx, 0);
+    PlaceControl(state, &positions, IDC_BROWSE, dx, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_SCAN, dx, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_CLEAN, dx, dy, 0, 0);
+
+    PlaceControl(state, &positions, IDC_CERT_INFO, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_CERTIFICATES, 0, 0, dx, dy);
+    PlaceControl(state, &positions, IDC_SELECT_ALL_CERTS, 0, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_EXPORT_CERTS, dx, dy, 0, 0);
+
+    PlaceControl(state, &positions, IDC_OFFLINE_INFO, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_PATH_LABEL, 0, 0, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_PATH, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_BROWSE, dx, 0, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_SCAN, dx, 0, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_PRODUCTS_LABEL, 0, 0, dx, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_PRODUCTS, 0, 0, dx, halfY);
+    PlaceControl(state, &positions, IDC_OFFLINE_CERTS_LABEL, 0, halfY, dx, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_CERTS, 0, halfY, dx, dy - halfY);
+    PlaceControl(state, &positions, IDC_OFFLINE_SELECT_ALL_CERTS, 0, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_SHOW_LICENSES, 0, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_SAVE, dx, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_CLEAN, dx, dy, 0, 0);
+
+    for (const int id : {IDC_LINK_GITHUB, IDC_LINK_WEBSITE, IDC_LINK_SUPPORT})
+        PlaceControl(state, &positions, id, 0, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_PROGRESS, 0, dy, dx, 0);
+    PlaceControl(state, &positions, IDC_STATUS, 0, dy, dx, 0);
+    PlaceControl(state, &positions, IDC_LOG, 0, dy, dx, 0);
+    if (positions) EndDeferWindowPos(positions);
+    for (const int id : {IDC_PRODUCTS, IDC_PROFILES, IDC_CERTIFICATES,
+                         IDC_OFFLINE_PRODUCTS, IDC_OFFLINE_CERTS}) ResizeListColumns(state, id);
+}
+
+void ApplyModernTheme(AppState& state) {
+    state.backgroundBrush = CreateSolidBrush(RGB(246, 248, 251));
+    HDC device = GetDC(state.window);
+    const int dpi = device ? GetDeviceCaps(device, LOGPIXELSY) : 96;
+    if (device) ReleaseDC(state.window, device);
+    LOGFONTW font{};
+    font.lfHeight = -MulDiv(15, dpi, 72);
+    font.lfWeight = FW_SEMIBOLD;
+    wcscpy_s(font.lfFaceName, L"Segoe UI");
+    state.titleFont = CreateFontIndirectW(&font);
+    if (state.titleFont) SendDlgItemMessageW(state.window, IDC_TITLE, WM_SETFONT,
+                                             reinterpret_cast<WPARAM>(state.titleFont), TRUE);
+    for (const int id : {IDC_PRODUCTS, IDC_PROFILES, IDC_CERTIFICATES,
+                         IDC_OFFLINE_PRODUCTS, IDC_OFFLINE_CERTS}) {
+        SetWindowTheme(GetDlgItem(state.window, id), L"Explorer", nullptr);
+    }
+    SetWindowTheme(GetDlgItem(state.window, IDC_TAB), L"Explorer", nullptr);
+    SendDlgItemMessageW(state.window, IDC_PROGRESS, PBM_SETSTATE, PBST_NORMAL, 0);
+}
 
 void OpenProjectLink(const AppState& state, int controlId) {
     const wchar_t* url = L"https://yoomoney.ru/to/4100119195083142";
@@ -107,7 +243,7 @@ std::wstring DefaultBackupFolder() {
     return folder;
 }
 
-void ConfigureList(HWND list, const std::vector<std::pair<std::wstring, int>>& columns) {
+void ConfigureList(AppState& state, HWND list, const std::vector<std::pair<std::wstring, int>>& columns) {
     ListView_DeleteAllItems(list);
     while (ListView_DeleteColumn(list, 0)) {}
     ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_CHECKBOXES |
@@ -120,11 +256,16 @@ void ConfigureList(HWND list, const std::vector<std::pair<std::wstring, int>>& c
         column.iSubItem = static_cast<int>(index);
         ListView_InsertColumn(list, static_cast<int>(index), &column);
     }
+    std::vector<int> weights;
+    weights.reserve(columns.size());
+    for (const auto& column : columns) weights.push_back(column.second);
+    state.listColumnWeights[GetDlgCtrlID(list)] = std::move(weights);
+    ResizeListColumns(state, GetDlgCtrlID(list));
 }
 
 void PopulateCertificates(AppState& state) {
     HWND list = GetDlgItem(state.window, IDC_CERTIFICATES);
-    ConfigureList(list, {
+    ConfigureList(state, list, {
         {Tr(state.language, L"Профиль", L"Profile"), 105},
         {Tr(state.language, L"Кому выдан", L"Issued to"), 170},
         {Tr(state.language, L"Кем выдан", L"Issued by"), 170},
@@ -154,7 +295,7 @@ void PopulateCertificates(AppState& state) {
 
 void PopulateOfflineLists(AppState& state) {
     HWND products = GetDlgItem(state.window, IDC_OFFLINE_PRODUCTS);
-    ConfigureList(products, {
+    ConfigureList(state, products, {
         {Tr(state.language, L"Продукт", L"Product"), 315},
         {Tr(state.language, L"Версия", L"Version"), 115},
         {Tr(state.language, L"Архитектура", L"Architecture"), 110},
@@ -176,7 +317,7 @@ void PopulateOfflineLists(AppState& state) {
     }
 
     HWND certificates = GetDlgItem(state.window, IDC_OFFLINE_CERTS);
-    ConfigureList(certificates, {
+    ConfigureList(state, certificates, {
         {Tr(state.language, L"Профиль", L"Profile"), 105},
         {Tr(state.language, L"Кому выдан", L"Issued to"), 185},
         {Tr(state.language, L"Кем выдан", L"Issued by"), 185},
@@ -203,7 +344,7 @@ void PopulateOfflineLists(AppState& state) {
 
 void PopulateLists(AppState& state) {
     HWND products = GetDlgItem(state.window, IDC_PRODUCTS);
-    ConfigureList(products, {
+    ConfigureList(state, products, {
         {Tr(state.language, L"Продукт", L"Product"), 255},
         {Tr(state.language, L"Версия", L"Version"), 90},
         {Tr(state.language, L"Архитектура", L"Architecture"), 90},
@@ -225,7 +366,7 @@ void PopulateLists(AppState& state) {
     }
 
     HWND profiles = GetDlgItem(state.window, IDC_PROFILES);
-    ConfigureList(profiles, {{Tr(state.language, L"Локальный профиль", L"Local profile"), 350},
+    ConfigureList(state, profiles, {{Tr(state.language, L"Локальный профиль", L"Local profile"), 350},
                              {Tr(state.language, L"Состояние", L"State"), 190}});
     for (size_t index = 0; index < state.scan.profiles.size(); ++index) {
         const auto& profile = state.scan.profiles[index];
@@ -367,7 +508,7 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_OFFLINE_BROWSE, Tr(state.language, L"Обзор...", L"Browse..."));
     SetText(state.window, IDC_OFFLINE_SCAN, Tr(state.language, L"Сканировать", L"Scan"));
     SetText(state.window, IDC_OFFLINE_PRODUCTS_LABEL, Tr(state.language, L"Продукты в отключённой Windows", L"Products in disconnected Windows"));
-    SetText(state.window, IDC_OFFLINE_CERTS_LABEL, Tr(state.language, L"Открытые сертификаты в офлайн-профилях", L"Public certificates in offline profiles"));
+    SetText(state.window, IDC_OFFLINE_CERTS_LABEL, Tr(state.language, L"Открытые сертификаты профилей и компьютера", L"Public certificates in profiles and local machine"));
     SetText(state.window, IDC_OFFLINE_SELECT_ALL_CERTS, Tr(state.language, L"Выбрать все сертификаты", L"Select all certificates"));
     SetText(state.window, IDC_OFFLINE_SHOW_LICENSES, Tr(state.language, L"Показать / копировать лицензии", L"Show / copy licenses"));
     SetText(state.window, IDC_OFFLINE_SAVE, Tr(state.language, L"Сохранить найденные данные...", L"Save rescued data..."));
@@ -403,7 +544,7 @@ void SetBusy(AppState& state, bool busy) {
         EnableWindow(GetDlgItem(state.window, IDC_CLEAN), !state.scan.products.empty());
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_SHOW_LICENSES), state.offline.valid && !state.offline.scan.licenses.empty());
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_SAVE), state.offline.valid);
-        EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_CLEAN), state.offline.valid && !state.offline.scan.products.empty());
+        EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_CLEAN), state.offline.cleanupCapable && !state.offline.scan.products.empty());
     }
 }
 
@@ -619,8 +760,11 @@ void DoOfflineScan(AppState& state) {
         SetText(state.window, IDC_OFFLINE_PATH, state.offline.windowsDirectory);
         summary << Tr(state.language, L"Офлайн: продуктов ", L"Offline: products ") << state.offline.scan.products.size()
                 << Tr(state.language, L", лицензий ", L", licenses ") << state.offline.scan.licenses.size()
+                << Tr(state.language, L", профилей ", L", profiles ") << state.offline.scan.profiles.size()
                 << Tr(state.language, L", открытых сертификатов ", L", public certificates ") << state.offline.scan.certificates.size()
-                << Tr(state.language, L", подтверждённых целей ", L", verified targets ") << state.offline.targets.size();
+                << Tr(state.language, L", подтверждённых целей ", L", verified targets ") << state.offline.targets.size()
+                << (state.offline.cleanupCapable ? Tr(state.language, L", очистка доступна", L", cleanup available")
+                                                 : Tr(state.language, L", только спасение данных", L", rescue only"));
         UpdateProgress(state, Tr(state.language, L"Офлайн-сканирование завершено. Изменения не выполнялись.", L"Offline scan completed. No changes were made."), 100);
     } else {
         summary << Tr(state.language, L"Офлайн-система не распознана.", L"Offline system was not recognized.");
@@ -655,7 +799,7 @@ void SaveOfflineData(AppState& state) {
 }
 
 void StartOfflineCleanup(AppState& state) {
-    if (!state.offline.valid || state.offline.scan.products.empty()) {
+    if (!state.offline.cleanupCapable || state.offline.scan.products.empty()) {
         MessageBoxW(state.window, Tr(state.language, L"Не найдены подтверждённые продукты для офлайн-очистки.", L"No confirmed products were found for offline cleanup.").c_str(),
                     L"CryptoPro Cleanup Utility", MB_OK | MB_ICONWARNING);
         return;
@@ -889,11 +1033,32 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
         TabCtrl_SetCurSel(tabs, 0);
         state->backupRoot = DefaultBackupFolder();
         SetText(dialog, IDC_BACKUP_PATH, state->backupRoot);
+        ApplyModernTheme(*state);
         ApplyLanguage(*state);
+        CaptureInitialLayout(*state);
         PostMessageW(dialog, WM_CPC_START, 0, 0);
         return TRUE;
     }
     if (!state) return FALSE;
+    if (message == WM_GETMINMAXINFO && state->minimumWindow.cx && state->minimumWindow.cy) {
+        auto* limits = reinterpret_cast<MINMAXINFO*>(lParam);
+        limits->ptMinTrackSize.x = state->minimumWindow.cx;
+        limits->ptMinTrackSize.y = state->minimumWindow.cy;
+        return TRUE;
+    }
+    if (message == WM_SIZE && wParam != SIZE_MINIMIZED) {
+        LayoutMainDialog(*state, LOWORD(lParam), HIWORD(lParam));
+        return TRUE;
+    }
+    if (message == WM_CTLCOLORDLG && state->backgroundBrush)
+        return reinterpret_cast<INT_PTR>(state->backgroundBrush);
+    if (message == WM_CTLCOLORSTATIC && state->backgroundBrush) {
+        HDC device = reinterpret_cast<HDC>(wParam);
+        SetBkMode(device, TRANSPARENT);
+        const int id = GetDlgCtrlID(reinterpret_cast<HWND>(lParam));
+        SetTextColor(device, id == IDC_TITLE ? RGB(25, 42, 70) : RGB(67, 78, 96));
+        return reinterpret_cast<INT_PTR>(state->backgroundBrush);
+    }
     if (message == WM_CPC_START) {
         if (state->resumeToken.empty()) DoScan(*state); else ResumeCleanup(*state);
         return TRUE;
@@ -964,6 +1129,11 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
             SortList(*state, static_cast<int>(header->idFrom), click->iSubItem);
             return TRUE;
         }
+    }
+    if (message == WM_DESTROY) {
+        if (state->titleFont) { DeleteObject(state->titleFont); state->titleFont = nullptr; }
+        if (state->backgroundBrush) { DeleteObject(state->backgroundBrush); state->backgroundBrush = nullptr; }
+        return TRUE;
     }
     if (message == WM_CLOSE) { if (!state->busy) EndDialog(dialog, 0); return TRUE; }
     return FALSE;

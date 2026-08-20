@@ -448,6 +448,32 @@ std::wstring PackMsiProductCode(const std::wstring& productCode) {
     return packed;
 }
 
+std::wstring UnpackMsiProductCode(const std::wstring& packedProductCode) {
+    if (packedProductCode.size() != 32 ||
+        !std::all_of(packedProductCode.begin(), packedProductCode.end(),
+                     [](wchar_t ch) { return iswxdigit(ch) != 0; })) return {};
+    auto reversePart = [&](size_t offset, size_t length) {
+        std::wstring part = packedProductCode.substr(offset, length);
+        std::reverse(part.begin(), part.end());
+        return part;
+    };
+    auto swapPairs = [&](size_t offset, size_t length) {
+        std::wstring part;
+        part.reserve(length);
+        for (size_t index = 0; index < length; index += 2) {
+            part.push_back(packedProductCode[offset + index + 1]);
+            part.push_back(packedProductCode[offset + index]);
+        }
+        return part;
+    };
+    std::wstring productCode = L"{" + reversePart(0, 8) + L"-" + reversePart(8, 4) + L"-" +
+                               reversePart(12, 4) + L"-" + swapPairs(16, 4) + L"-" +
+                               swapPairs(20, 12) + L"}";
+    std::transform(productCode.begin(), productCode.end(), productCode.begin(),
+                   [](wchar_t ch) { return static_cast<wchar_t>(towupper(ch)); });
+    return IsGuid(productCode) ? productCode : std::wstring();
+}
+
 bool IsProtectedPath(const std::wstring& path) {
     const std::wstring lower = ToLower(CanonicalPath(path));
     const auto containsBoundary = [&](const std::wstring& token) {
