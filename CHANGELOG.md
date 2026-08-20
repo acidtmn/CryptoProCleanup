@@ -2,6 +2,25 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
+## [0.4.0-rc2] - 2026-08-20
+
+### Fixed
+
+- Replaced `RegLoadAppKey` for disconnected Windows system/user hives with privileged temporary `RegLoadKey` mounts and guaranteed `RegUnLoadKey` cleanup. A saved system `SOFTWARE` hive reproducibly returned `ERROR_BADDB` through the former API but opens correctly through the new loader.
+- Offline public-certificate discovery now parses serialized certificate files under each profile's `AppData\Roaming\Microsoft\SystemCertificates\My\Certificates`, in addition to registry-backed Personal stores.
+- Inactive-profile cleanup on the running system uses the same system-hive-capable loader.
+
+### Added
+
+- Copyable offline diagnostics in the GUI, opened automatically after an unrecognized or completely empty scan.
+- Safe `--offline-scan <Windows path> --report <text path>` diagnostic command.
+- Stage-by-stage offline diagnostics with resolved paths, API result codes, counts, and mount/unmount results; full licenses and certificate contents are excluded.
+
+### Validation
+
+- A synthetic disconnected-Windows fixture built from saved system hives passed the full read-only pipeline with two CryptoPro products, four license candidates, one inactive profile, and seven file-backed public certificates.
+- A repeat test on the user's connected Windows 7 x86 disk remains mandatory.
+
 ## [0.4.0-rc1] - 2026-08-20
 
 ### Added

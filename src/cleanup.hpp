@@ -120,8 +120,25 @@ struct OfflineScanResult {
     std::wstring systemHivePath;
     ScanResult scan;
     std::vector<OfflineCleanupTarget> targets;
+    std::vector<std::wstring> diagnostics;
     bool valid = false;
     bool cleanupCapable = false;
+};
+
+class OfflineRegistryMount {
+public:
+    OfflineRegistryMount() = default;
+    ~OfflineRegistryMount();
+    OfflineRegistryMount(const OfflineRegistryMount&) = delete;
+    OfflineRegistryMount& operator=(const OfflineRegistryMount&) = delete;
+    LONG Open(const std::wstring& hivePath, REGSAM access);
+    LONG Close();
+    HKEY get() const { return key_; }
+    explicit operator bool() const { return key_ != nullptr; }
+
+private:
+    HKEY key_ = nullptr;
+    std::wstring mountName_;
 };
 
 struct CleanupPlan {
@@ -155,6 +172,7 @@ struct CommandLineOptions {
     bool languageExplicit = false;
     std::wstring reportPath;
     std::wstring resumeToken;
+    std::wstring offlineWindowsPath;
 };
 
 using ProgressCallback = std::function<void(const std::wstring&, int)>;
@@ -227,5 +245,6 @@ bool RequestSystemRestart(std::wstring* error = nullptr);
 CommandLineOptions ParseCommandLine(int argc, wchar_t** argv);
 int RunGui(HINSTANCE instance, Language language, const std::wstring& resumeToken);
 int RunScanCommand(const CommandLineOptions& options);
+int RunOfflineScanCommand(const CommandLineOptions& options);
 
 }  // namespace cpc

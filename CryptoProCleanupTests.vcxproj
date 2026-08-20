@@ -19,6 +19,6 @@
     <Link><SubSystem>Console</SubSystem><GenerateDebugInformation>true</GenerateDebugInformation><AdditionalDependencies>advapi32.lib;crypt32.lib;msi.lib;ole32.lib;oleaut32.lib;setupapi.lib;shell32.lib;shlwapi.lib;taskschd.lib;version.lib;wintrust.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>/SUBSYSTEM:CONSOLE,6.01 %(AdditionalOptions)</AdditionalOptions></Link>
   </ItemDefinitionGroup>
   <ItemGroup><ClInclude Include="src\cleanup.hpp" /></ItemGroup>
-  <ItemGroup><ClCompile Include="src\core.cpp" /><ClCompile Include="src\certificates.cpp" /><ClCompile Include="src\offline.cpp" /><ClCompile Include="tests\test_core.cpp" /></ItemGroup>
+  <ItemGroup><ClCompile Include="src\core.cpp" /><ClCompile Include="src\certificates.cpp" /><ClCompile Include="src\offline_registry.cpp" /><ClCompile Include="src\offline.cpp" /><ClCompile Include="tests\test_core.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -47,6 +47,32 @@ bool FileExists(const std::wstring& path) {
     return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
+bool DirectoryExistsWithoutReparsePoint(const std::wstring& path) {
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) &&
+           !(attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+}
+
+bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* bytes) {
+    if (!bytes) return false;
+    bytes->clear();
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    LARGE_INTEGER size{};
+    const bool validSize = GetFileSizeEx(file, &size) && size.QuadPart > 0 && size.QuadPart <= 16 * 1024 * 1024;
+    bool success = false;
+    if (validSize) {
+        bytes->resize(static_cast<size_t>(size.QuadPart));
+        DWORD read = 0;
+        success = ReadFile(file, bytes->data(), static_cast<DWORD>(bytes->size()), &read, nullptr) != FALSE &&
+                  read == static_cast<DWORD>(bytes->size());
+    }
+    CloseHandle(file);
+    if (!success) bytes->clear();
+    return success;
+}
+
 std::wstring CanonicalPath(std::wstring path) {
     path = Trim(ExpandEnvironment(path));
     std::replace(path.begin(), path.end(), L'/', L'\\');
@@ -140,7 +166,7 @@ void ReadCertificateStoreAt(HKEY root, const wchar_t* storePath, const UserProfi
                             std::unordered_set<std::wstring>* seen,
                             std::vector<std::wstring>* warnings) {
     RegKey registryStore;
-    const LONG opened = RegOpenKeyExW(root, storePath, 0, KEY_READ | KEY_WOW64_64KEY, registryStore.put());
+    const LONG opened = RegOpenKeyExW(root, storePath, 0, KEY_READ, registryStore.put());
     if (opened == ERROR_FILE_NOT_FOUND || opened == ERROR_PATH_NOT_FOUND) return;
     if (opened != ERROR_SUCCESS) {
         if (warnings) warnings->push_back(L"Could not read the personal certificate store for profile: " + profile.displayName);
@@ -162,6 +188,50 @@ void ReadCertificateStore(HKEY profileRoot, const UserProfile& profile,
                           std::vector<std::wstring>* warnings) {
     ReadCertificateStoreAt(profileRoot, L"SOFTWARE\\Microsoft\\SystemCertificates\\My",
                            profile, certificates, seen, warnings);
+    ReadCertificateStoreAt(profileRoot, L"SOFTWARE\\Policies\\Microsoft\\SystemCertificates\\My",
+                           profile, certificates, seen, warnings);
+}
+
+void ReadProfileCertificateFiles(const UserProfile& profile,
+                                 std::vector<CertificateEntry>* certificates,
+                                 std::unordered_set<std::wstring>* seen,
+                                 std::vector<std::wstring>* warnings) {
+    if (!DirectoryExistsWithoutReparsePoint(profile.profilePath)) return;
+    std::wstring directory = profile.profilePath;
+    for (const wchar_t* segment : {L"AppData", L"Roaming", L"Microsoft", L"SystemCertificates",
+                                   L"My", L"Certificates"}) {
+        directory = JoinPath(directory, segment);
+        if (!DirectoryExistsWithoutReparsePoint(directory)) return;
+    }
+
+    CertStore store(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, 0, CERT_STORE_CREATE_NEW_FLAG, nullptr));
+    if (!store) return;
+    WIN32_FIND_DATAW data{};
+    HANDLE search = FindFirstFileW(JoinPath(directory, L"*").c_str(), &data);
+    if (search == INVALID_HANDLE_VALUE) return;
+    size_t files = 0;
+    size_t parsed = 0;
+    do {
+        const std::wstring name = data.cFileName;
+        if (name == L"." || name == L".." || (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+            (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) continue;
+        ++files;
+        std::vector<BYTE> bytes;
+        if (!ReadFileBytes(JoinPath(directory, name), &bytes)) continue;
+        if (CertAddSerializedElementToStore(store.get(), bytes.data(), static_cast<DWORD>(bytes.size()),
+                                            CERT_STORE_ADD_ALWAYS, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
+                                            nullptr, nullptr)) {
+            ++parsed;
+            continue;
+        }
+        if (CertAddEncodedCertificateToStore(store.get(), X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                                             bytes.data(), static_cast<DWORD>(bytes.size()),
+                                             CERT_STORE_ADD_ALWAYS, nullptr)) ++parsed;
+    } while (FindNextFileW(search, &data));
+    FindClose(search);
+    EnumerateCertificateStore(store.get(), profile, certificates, seen);
+    if (files && !parsed && warnings)
+        warnings->push_back(L"Certificate files were present but could not be parsed for profile: " + profile.displayName);
 }
 
 bool WriteBinaryFile(const std::wstring& path, const BYTE* data, size_t size, std::wstring* error) {
@@ -205,18 +275,30 @@ void ScanUserCertificates(const std::vector<UserProfile>& profiles,
                                             L"MY"));
             if (current) EnumerateCertificateStore(current.get(), profile, certificates, &seen);
             else if (warnings) warnings->push_back(L"CryptoAPI could not open the current user's Personal certificate store.");
+            ReadProfileCertificateFiles(profile, certificates, &seen, warnings);
             continue;
         }
-        if (profile.loaded) RegOpenKeyExW(HKEY_USERS, profile.sid.c_str(), 0,
-                                         KEY_READ | KEY_WOW64_64KEY, profileRoot.put());
-        if (!profileRoot.get()) {
-            const std::wstring hive = JoinPath(profile.profilePath, L"NTUSER.DAT");
-            if (!FileExists(hive) || RegLoadAppKeyW(hive.c_str(), profileRoot.put(), KEY_READ, 0, 0) != ERROR_SUCCESS) {
-                if (warnings) warnings->push_back(L"Could not load certificate registry for profile: " + profile.displayName);
-                continue;
-            }
+        if (profile.loaded) RegOpenKeyExW(HKEY_USERS, profile.sid.c_str(), 0, KEY_READ, profileRoot.put());
+        if (profileRoot.get()) {
+            ReadCertificateStore(profileRoot.get(), profile, certificates, &seen, warnings);
+            ReadProfileCertificateFiles(profile, certificates, &seen, warnings);
+            continue;
         }
-        ReadCertificateStore(profileRoot.get(), profile, certificates, &seen, warnings);
+
+        const std::wstring hivePath = JoinPath(profile.profilePath, L"NTUSER.DAT");
+        OfflineRegistryMount offlineHive;
+        const LONG loaded = FileExists(hivePath) ? offlineHive.Open(hivePath, KEY_READ) : ERROR_FILE_NOT_FOUND;
+        if (loaded != ERROR_SUCCESS) {
+            if (warnings) warnings->push_back(L"Could not mount certificate registry for profile " +
+                profile.displayName + L", code " + std::to_wstring(loaded) + L": " + GetLastErrorMessage(loaded));
+            continue;
+        }
+        ReadCertificateStore(offlineHive.get(), profile, certificates, &seen, warnings);
+        const LONG unloaded = offlineHive.Close();
+        if (unloaded != ERROR_SUCCESS && warnings)
+            warnings->push_back(L"Could not unload certificate registry for profile " + profile.displayName +
+                                L", code " + std::to_wstring(unloaded) + L": " + GetLastErrorMessage(unloaded));
+        ReadProfileCertificateFiles(profile, certificates, &seen, warnings);
     }
     std::stable_sort(certificates->begin(), certificates->end(), [](const CertificateEntry& left, const CertificateEntry& right) {
         if (ToLower(left.profileName) != ToLower(right.profileName)) return ToLower(left.profileName) < ToLower(right.profileName);
@@ -238,6 +320,8 @@ void ScanOfflineMachineCertificates(Language language, HKEY offlineSoftware,
     for (const auto& certificate : *certificates)
         seen.insert(ToLower(certificate.profileSid + L"|" + certificate.thumbprint));
     ReadCertificateStoreAt(offlineSoftware, L"Microsoft\\SystemCertificates\\My",
+                           machine, certificates, &seen, warnings);
+    ReadCertificateStoreAt(offlineSoftware, L"Policies\\Microsoft\\SystemCertificates\\My",
                            machine, certificates, &seen, warnings);
 }
 

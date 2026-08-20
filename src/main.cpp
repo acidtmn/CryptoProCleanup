@@ -20,10 +20,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ wchar_t*
         MessageBoxW(nullptr,
             L"CryptoPro Cleanup Utility\r\n\r\n"
             L"--scan                 Safe scan only\r\n"
-            L"--report <path>        JSON report path\r\n"
+            L"--offline-scan <path>  Safe disconnected-Windows scan\r\n"
+            L"--report <path>        Report path\r\n"
             L"--lang ru|en           Interface/report language\r\n"
             L"--resume <token>       Internal restart continuation",
             L"CryptoPro Cleanup Utility", MB_OK | MB_ICONINFORMATION);
+    } else if (!options.offlineWindowsPath.empty()) {
+        result = cpc::RunOfflineScanCommand(options);
     } else if (options.scanOnly) {
         result = cpc::RunScanCommand(options);
     } else {

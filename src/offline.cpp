@@ -13,11 +13,10 @@
 namespace cpc {
 namespace {
 
-// Registry access from this x86 utility defaults to the 32-bit view on an x64 rescue host.
-// Request the native view explicitly while walking a loaded offline hive so physical SOFTWARE
-// paths are not redirected, including when the disconnected installation itself is x86.
-constexpr REGSAM kOfflineRead = KEY_READ | KEY_WOW64_64KEY;
-constexpr REGSAM kOfflineWrite = KEY_READ | KEY_WRITE | KEY_WOW64_64KEY;
+// RegLoadKey mounts each disconnected hive below a neutral HKEY_USERS subkey. That temporary
+// root is outside redirected HKLM\Software, so child paths are already the hive's physical paths.
+constexpr REGSAM kOfflineRead = KEY_READ;
+constexpr REGSAM kOfflineWrite = KEY_READ | KEY_WRITE;
 
 class RegKey {
 public:
@@ -219,7 +218,10 @@ bool ContainsVerifiedBinary(const std::wstring& directory, unsigned depth = 0) {
 void ScanOfflineUninstallRoot(OfflineScanResult& offline, HKEY software, const std::wstring& rootPath,
                               const std::wstring& architecture) {
     RegKey root;
-    if (RegOpenKeyExW(software, rootPath.c_str(), 0, kOfflineRead, root.put()) != ERROR_SUCCESS) return;
+    const LONG opened = RegOpenKeyExW(software, rootPath.c_str(), 0, kOfflineRead, root.put());
+    offline.diagnostics.push_back(L"Open uninstall root [" + rootPath + L"]: " + std::to_wstring(opened));
+    if (opened != ERROR_SUCCESS) return;
+    const size_t before = offline.scan.products.size();
     for (const auto& subkey : EnumSubkeys(root.get())) {
         RegKey key;
         if (RegOpenKeyExW(root.get(), subkey.c_str(), 0, kOfflineRead, key.put()) != ERROR_SUCCESS) continue;
@@ -241,6 +243,8 @@ void ScanOfflineUninstallRoot(OfflineScanResult& offline, HKEY software, const s
         product.risk = IsHighRiskProduct(displayName) ? RiskLevel::High : RiskLevel::Normal;
         offline.scan.products.push_back(std::move(product));
     }
+    offline.diagnostics.push_back(L"Confirmed products in [" + rootPath + L"]: " +
+                                  std::to_wstring(offline.scan.products.size() - before));
 }
 
 bool IsLicenseValueName(const std::wstring& name) {
@@ -308,7 +312,9 @@ void ScanOfflineLicenses(OfflineScanResult& offline, HKEY software) {
     std::unordered_set<std::wstring> seen;
     RegKey userData;
     constexpr wchar_t installerPath[] = L"Microsoft\\Windows\\CurrentVersion\\Installer\\UserData";
-    if (RegOpenKeyExW(software, installerPath, 0, kOfflineRead, userData.put()) == ERROR_SUCCESS) {
+    const LONG installerOpened = RegOpenKeyExW(software, installerPath, 0, kOfflineRead, userData.put());
+    offline.diagnostics.push_back(L"Open Installer UserData: " + std::to_wstring(installerOpened));
+    if (installerOpened == ERROR_SUCCESS) {
         for (const auto& sid : EnumSubkeys(userData.get())) {
             RegKey products;
             if (RegOpenKeyExW(userData.get(), (sid + L"\\Products").c_str(), 0, kOfflineRead, products.put()) != ERROR_SUCCESS) continue;
@@ -391,7 +397,9 @@ bool AddOfflineProfile(OfflineScanResult& offline, const std::wstring& sid, cons
 void ScanOfflineProfiles(Language language, OfflineScanResult& offline, HKEY software) {
     RegKey profiles;
     constexpr wchar_t profileList[] = L"Microsoft\\Windows NT\\CurrentVersion\\ProfileList";
-    if (RegOpenKeyExW(software, profileList, 0, kOfflineRead, profiles.put()) == ERROR_SUCCESS) {
+    const LONG profilesOpened = RegOpenKeyExW(software, profileList, 0, kOfflineRead, profiles.put());
+    offline.diagnostics.push_back(L"Open ProfileList: " + std::to_wstring(profilesOpened));
+    if (profilesOpened == ERROR_SUCCESS) {
         for (const auto& sid : EnumSubkeys(profiles.get())) {
             if (sid.rfind(L"S-1-5-21-", 0) != 0) continue;
             RegKey profile;
@@ -638,7 +646,7 @@ bool DeleteRegistryTreeProtected(HKEY root, const std::wstring& subkey, const st
         }
     }
     key.reset();
-    const LONG deleted = RegDeleteKeyExW(root, subkey.c_str(), KEY_WOW64_64KEY, 0);
+    const LONG deleted = RegDeleteKeyExW(root, subkey.c_str(), 0, 0);
     if (deleted == ERROR_SUCCESS || deleted == ERROR_FILE_NOT_FOUND ||
         ((deleted == ERROR_ACCESS_DENIED || deleted == ERROR_KEY_HAS_CHILDREN) && retained && *retained)) return true;
     if (error) *error = deleted;
@@ -658,6 +666,11 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
     offline.volumeRoot = VolumeRoot(offline.windowsDirectory);
     offline.softwareHivePath = JoinPath(offline.windowsDirectory, L"System32\\Config\\SOFTWARE");
     offline.systemHivePath = JoinPath(offline.windowsDirectory, L"System32\\Config\\SYSTEM");
+    offline.diagnostics.push_back(L"Requested path: " + requestedWindowsDirectory);
+    offline.diagnostics.push_back(L"Resolved Windows path: " + offline.windowsDirectory);
+    offline.diagnostics.push_back(L"Resolved volume root: " + offline.volumeRoot);
+    offline.diagnostics.push_back(L"SOFTWARE hive: " + offline.softwareHivePath);
+    offline.diagnostics.push_back(L"SYSTEM hive: " + offline.systemHivePath);
     std::vector<wchar_t> currentWindows(32768, L'\0');
     const UINT currentWindowsLength = GetWindowsDirectoryW(currentWindows.data(), static_cast<UINT>(currentWindows.size()));
     const std::wstring currentWindowsPath = currentWindowsLength && currentWindowsLength < currentWindows.size() ?
@@ -678,8 +691,10 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
         offline.scan.warnings.push_back(Tr(language, L"Не найден офлайн-улей SYSTEM: спасение данных доступно, очистка отключена.",
                                                      L"The offline SYSTEM hive was not found: data rescue is available, cleanup is disabled."));
     if (progress) progress(Tr(language, L"Открытие офлайн-реестра только для чтения...", L"Opening offline registry read-only..."), 10);
-    RegKey software;
-    const LONG softwareStatus = RegLoadAppKeyW(offline.softwareHivePath.c_str(), software.put(), KEY_READ, 0, 0);
+    OfflineRegistryMount software;
+    const LONG softwareStatus = software.Open(offline.softwareHivePath, KEY_READ);
+    offline.diagnostics.push_back(L"RegLoadKey SOFTWARE: " + std::to_wstring(softwareStatus) +
+                                  L" (" + GetLastErrorMessage(softwareStatus) + L")");
     if (softwareStatus != ERROR_SUCCESS) {
         std::wostringstream details;
         details << Tr(language, L"Не удалось открыть офлайн-улей SOFTWARE, код ",
@@ -697,10 +712,16 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
     offline.scan.osArchitecture = RegOpenKeyExW(software.get(), L"WOW6432Node", 0, kOfflineRead, wow.put()) == ERROR_SUCCESS ? L"x64/ARM64" : L"x86";
     if (progress) progress(Tr(language, L"Поиск офлайн-продуктов и лицензий...", L"Scanning offline products and licenses..."), 30);
     ScanOfflineUninstallRoot(offline, software.get(), L"Microsoft\\Windows\\CurrentVersion\\Uninstall", offline.scan.osArchitecture == L"x86" ? L"x86" : L"x64");
+    offline.diagnostics.push_back(L"Products after native uninstall root: " + std::to_wstring(offline.scan.products.size()));
     ScanOfflineUninstallRoot(offline, software.get(), L"WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall", L"x86");
+    offline.diagnostics.push_back(L"Products after WOW uninstall root: " + std::to_wstring(offline.scan.products.size()));
     ScanOfflineLicenses(offline, software.get());
+    offline.diagnostics.push_back(L"Products after Installer UserData: " + std::to_wstring(offline.scan.products.size()));
+    offline.diagnostics.push_back(L"Full license candidates: " + std::to_wstring(offline.scan.licenses.size()));
     ScanOfflineProfiles(language, offline, software.get());
+    offline.diagnostics.push_back(L"Offline profiles with NTUSER.DAT: " + std::to_wstring(offline.scan.profiles.size()));
     ScanOfflineMachineCertificates(language, software.get(), &offline.scan.certificates, &offline.scan.warnings);
+    offline.diagnostics.push_back(L"Local-machine public certificates: " + std::to_wstring(offline.scan.certificates.size()));
 
     offline.scan.protectedItems = {
         L"Offline user and local-machine certificate stores (read-only)",
@@ -715,7 +736,13 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
     ScanOfflineProviders(offline, software.get(), approvedRoots, &identities);
     version.reset();
     wow.reset();
-    software.reset();
+    const LONG softwareUnload = software.Close();
+    offline.diagnostics.push_back(L"RegUnLoadKey SOFTWARE: " + std::to_wstring(softwareUnload) +
+                                  L" (" + GetLastErrorMessage(softwareUnload) + L")");
+    if (softwareUnload != ERROR_SUCCESS)
+        offline.scan.warnings.push_back(Tr(language, L"Не удалось выгрузить временно подключённый улей SOFTWARE, код ",
+                                                      L"Could not unload the temporarily mounted SOFTWARE hive, code ") +
+                                        std::to_wstring(softwareUnload));
 
     if (progress) progress(Tr(language, L"Чтение открытых сертификатов офлайн-профилей...", L"Reading public certificates from offline profiles..."), 55);
     std::vector<CertificateEntry> machineCertificates = std::move(offline.scan.certificates);
@@ -731,13 +758,24 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
                 return ToLower(left.subject) < ToLower(right.subject);
             return left.thumbprint < right.thumbprint;
         });
+    offline.diagnostics.push_back(L"Public certificates after user profiles: " +
+                                  std::to_wstring(offline.scan.certificates.size()));
 
     if (FileExists(offline.systemHivePath)) {
-        RegKey system;
-        const LONG systemStatus = RegLoadAppKeyW(offline.systemHivePath.c_str(), system.put(), KEY_READ, 0, 0);
+        OfflineRegistryMount system;
+        const LONG systemStatus = system.Open(offline.systemHivePath, KEY_READ);
+        offline.diagnostics.push_back(L"RegLoadKey SYSTEM: " + std::to_wstring(systemStatus) +
+                                      L" (" + GetLastErrorMessage(systemStatus) + L")");
         if (systemStatus == ERROR_SUCCESS) {
             ScanOfflineServices(offline, system.get(), approvedRoots, &identities);
-            offline.cleanupCapable = true;
+            const LONG systemUnload = system.Close();
+            offline.diagnostics.push_back(L"RegUnLoadKey SYSTEM: " + std::to_wstring(systemUnload) +
+                                          L" (" + GetLastErrorMessage(systemUnload) + L")");
+            offline.cleanupCapable = systemUnload == ERROR_SUCCESS && softwareUnload == ERROR_SUCCESS;
+            if (systemUnload != ERROR_SUCCESS)
+                offline.scan.warnings.push_back(Tr(language, L"Не удалось выгрузить временно подключённый улей SYSTEM, код ",
+                                                              L"Could not unload the temporarily mounted SYSTEM hive, code ") +
+                                                std::to_wstring(systemUnload));
         } else {
             std::wostringstream details;
             details << Tr(language, L"Не удалось открыть офлайн-улей SYSTEM, код ",
@@ -761,6 +799,13 @@ OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requ
         L"Офлайн-очистка является принудительной: штатный установщик отключённой Windows запустить невозможно. Неизвестные COM- и браузерные остатки удаляться не будут.",
         L"Offline cleanup is forced: the disconnected Windows installer cannot be run. Unknown COM and browser remnants will not be removed."));
     offline.valid = true;
+    offline.diagnostics.push_back(L"Final result: valid=true, cleanupCapable=" +
+                                  std::wstring(offline.cleanupCapable ? L"true" : L"false") +
+                                  L", products=" + std::to_wstring(offline.scan.products.size()) +
+                                  L", licenses=" + std::to_wstring(offline.scan.licenses.size()) +
+                                  L", profiles=" + std::to_wstring(offline.scan.profiles.size()) +
+                                  L", certificates=" + std::to_wstring(offline.scan.certificates.size()) +
+                                  L", targets=" + std::to_wstring(offline.targets.size()));
     if (progress) progress(Tr(language, L"Офлайн-сканирование завершено без изменений.", L"Offline scan completed without changes."), 100);
     return offline;
 }
@@ -818,6 +863,15 @@ bool SaveOfflineBackup(Language language, const OfflineScanResult& offline,
            << L",\n  \"private_keys_exported\": false,\n  \"verified_cleanup_targets\": " << offline.targets.size()
            << L",\n  \"recovery_copies\": " << (includeRecoveryCopies ? L"true" : L"false") << L"\n}\n";
     if (!WriteUtf8File(JoinPath(folder, L"offline-report.json"), Utf8(report.str()), error)) return false;
+    std::wostringstream diagnostics;
+    diagnostics << L"CryptoPro Cleanup Utility " << kVersion << L"\r\n"
+                << L"Offline scan diagnostics / Диагностика офлайн-сканирования\r\n\r\n";
+    for (const auto& line : offline.diagnostics) diagnostics << line << L"\r\n";
+    if (!offline.scan.warnings.empty()) {
+        diagnostics << L"\r\nWarnings / Предупреждения:\r\n";
+        for (const auto& warning : offline.scan.warnings) diagnostics << L"- " << warning << L"\r\n";
+    }
+    if (!WriteUtf8File(JoinPath(folder, L"offline-diagnostics.txt"), Utf8(diagnostics.str()), error)) return false;
 
     if (includeRecoveryCopies) {
         const std::wstring hives = JoinPath(folder, L"registry-hives");
@@ -862,8 +916,10 @@ ExecutionResult ExecuteOfflineCleanup(const OfflineScanResult& offline,
         return result;
     }
     const auto probeHive = [](const std::wstring& path) {
-        RegKey hive;
-        return RegLoadAppKeyW(path.c_str(), hive.put(), KEY_READ | KEY_WRITE, 0, 0);
+        OfflineRegistryMount hive;
+        const LONG opened = hive.Open(path, KEY_READ | KEY_WRITE);
+        if (opened != ERROR_SUCCESS) return opened;
+        return hive.Close();
     };
     const LONG softwareStatus = probeHive(offline.softwareHivePath);
     const LONG systemStatus = probeHive(offline.systemHivePath);
@@ -907,8 +963,8 @@ ExecutionResult ExecuteOfflineCleanup(const OfflineScanResult& offline,
     };
 
     const auto processRegistryHive = [&](OfflineHive hiveType, const std::wstring& hivePath) {
-        RegKey hive;
-        const LONG opened = RegLoadAppKeyW(hivePath.c_str(), hive.put(), KEY_READ | KEY_WRITE, 0, 0);
+        OfflineRegistryMount hive;
+        const LONG opened = hive.Open(hivePath, KEY_READ | KEY_WRITE);
         if (opened != ERROR_SUCCESS) {
             result.anyFailure = true;
             result.operations.push_back({L"Offline cleanup", hiveType == OfflineHive::Software ? L"SOFTWARE" : L"SYSTEM",
@@ -922,7 +978,13 @@ ExecutionResult ExecuteOfflineCleanup(const OfflineScanResult& offline,
             if (registryTarget && target.hive == hiveType) processTarget(target, hive.get());
         }
         RegFlushKey(hive.get());
-        return true;
+        const LONG unloaded = hive.Close();
+        if (unloaded == ERROR_SUCCESS) return true;
+        result.anyFailure = true;
+        result.operations.push_back({L"Offline cleanup", hiveType == OfflineHive::Software ? L"SOFTWARE" : L"SYSTEM",
+                                     Outcome::Failed, static_cast<DWORD>(unloaded),
+                                     L"Cleanup operations completed, but the temporary registry mount could not be unloaded."});
+        return false;
     };
     if (!processRegistryHive(OfflineHive::Software, offline.softwareHivePath)) return result;
     if (!processRegistryHive(OfflineHive::System, offline.systemHivePath)) return result;

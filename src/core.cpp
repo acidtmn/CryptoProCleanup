@@ -1455,14 +1455,16 @@ bool CleanProfileRegistry(const UserProfile& profile, bool* protectedRetained, D
     }
     const std::wstring hiveFile = JoinPath(profile.profilePath, L"NTUSER.DAT");
     if (!FileExists(hiveFile)) { if (error) *error = ERROR_FILE_NOT_FOUND; return false; }
-    HKEY appHive = nullptr;
-    const LONG status = RegLoadAppKeyW(hiveFile.c_str(), &appHive, KEY_READ | KEY_WRITE, 0, 0);
+    OfflineRegistryMount offlineHive;
+    const LONG status = offlineHive.Open(hiveFile, KEY_READ | KEY_WRITE);
     if (status != ERROR_SUCCESS) { if (error) *error = status; return false; }
-    loaded.reset(appHive);
-    const bool ok = DeleteRegistryBranchRecursive(loaded.get(), L"SOFTWARE\\Crypto Pro", 0,
+    const bool ok = DeleteRegistryBranchRecursive(offlineHive.get(), L"SOFTWARE\\Crypto Pro", 0,
                                                    L"HKU\\<PROFILE>\\SOFTWARE\\Crypto Pro", protectedRetained);
-    if (!ok && error) *error = GetLastError();
-    return ok;
+    const DWORD cleanupError = ok ? ERROR_SUCCESS : GetLastError();
+    const LONG unloaded = offlineHive.Close();
+    if (!ok) { if (error) *error = cleanupError; return false; }
+    if (unloaded != ERROR_SUCCESS) { if (error) *error = unloaded; return false; }
+    return true;
 }
 
 OperationRecord DeleteServiceTarget(const CleanupTarget& target, bool* rebootRequired) {
@@ -2138,6 +2140,7 @@ CommandLineOptions ParseCommandLine(int argc, wchar_t** argv) {
     for (int index = 1; index < argc; ++index) {
         const std::wstring argument = ToLower(argv[index]);
         if (argument == L"--scan") options.scanOnly = true;
+        else if (argument == L"--offline-scan" && index + 1 < argc) options.offlineWindowsPath = argv[++index];
         else if (argument == L"--help" || argument == L"-h" || argument == L"/?") options.showHelp = true;
         else if (argument == L"--report" && index + 1 < argc) options.reportPath = argv[++index];
         else if (argument == L"--resume" && index + 1 < argc) options.resumeToken = argv[++index];
@@ -2166,6 +2169,34 @@ int RunScanCommand(const CommandLineOptions& options) {
     }
     MessageBoxW(nullptr, report.c_str(), Tr(options.language, L"Отчёт сканирования сохранён", L"Scan report saved").c_str(), MB_OK | MB_ICONINFORMATION);
     return 0;
+}
+
+int RunOfflineScanCommand(const CommandLineOptions& options) {
+    const OfflineScanResult offline = ScanOfflineWindows(options.language, options.offlineWindowsPath);
+    std::wostringstream text;
+    text << L"CryptoPro Cleanup Utility " << kVersion << L"\r\n"
+         << L"Offline scan diagnostics / Диагностика офлайн-сканирования\r\n\r\n";
+    for (const auto& line : offline.diagnostics) text << line << L"\r\n";
+    if (!offline.scan.warnings.empty()) {
+        text << L"\r\nWarnings / Предупреждения:\r\n";
+        for (const auto& warning : offline.scan.warnings) text << L"- " << warning << L"\r\n";
+    }
+    std::wstring report = options.reportPath;
+    if (report.empty()) {
+        std::vector<wchar_t> current(32768, L'\0');
+        GetCurrentDirectoryW(static_cast<DWORD>(current.size()), current.data());
+        report = JoinPath(current.data(), L"CryptoProCleanup-offline-diagnostic.txt");
+    }
+    std::wstring error;
+    if (!WriteUtf8File(report, Utf8(text.str()), &error)) {
+        MessageBoxW(nullptr, error.c_str(), L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
+        return 2;
+    }
+    MessageBoxW(nullptr, report.c_str(),
+                Tr(options.language, L"Диагностика офлайн-сканирования сохранена",
+                                     L"Offline scan diagnostics saved").c_str(),
+                MB_OK | (offline.valid ? MB_ICONINFORMATION : MB_ICONWARNING));
+    return offline.valid ? 0 : 1;
 }
 
 }  // namespace cpc

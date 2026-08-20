@@ -34,7 +34,7 @@
     <ClInclude Include="src\cleanup.hpp" /><ClInclude Include="src\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\core.cpp" /><ClCompile Include="src\certificates.cpp" /><ClCompile Include="src\offline.cpp" /><ClCompile Include="src\gui.cpp" /><ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\core.cpp" /><ClCompile Include="src\certificates.cpp" /><ClCompile Include="src\offline_registry.cpp" /><ClCompile Include="src\offline.cpp" /><ClCompile Include="src\gui.cpp" /><ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup><ResourceCompile Include="src\resources.rc" /></ItemGroup>
   <ItemGroup><Manifest Include="src\app.manifest" /></ItemGroup>
