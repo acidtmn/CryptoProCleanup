@@ -14,11 +14,19 @@
 #include <memory>
 #include <numeric>
 #include <sstream>
+#include <thread>
 
 namespace cpc {
 namespace {
 
 constexpr UINT WM_CPC_START = WM_APP + 10;
+constexpr UINT WM_CPC_OFFLINE_PROGRESS = WM_APP + 11;
+constexpr UINT WM_CPC_OFFLINE_COMPLETE = WM_APP + 12;
+
+struct OfflineProgressMessage {
+    std::wstring message;
+    int percent = 0;
+};
 
 struct AppState {
     HWND window = nullptr;
@@ -39,6 +47,8 @@ struct AppState {
     HFONT titleFont = nullptr;
     HBRUSH backgroundBrush = nullptr;
     bool busy = false;
+    bool offlineScanRunning = false;
+    std::thread offlineScanThread;
 };
 
 struct ConfirmState {
@@ -507,9 +517,9 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_SELECT_ALL_CERTS, Tr(state.language, L"Выбрать все сертификаты", L"Select all certificates"));
     SetText(state.window, IDC_EXPORT_CERTS, Tr(state.language, L"Сохранить выбранные открытые сертификаты...", L"Export selected public certificates..."));
     SetText(state.window, IDC_OFFLINE_INFO, Tr(state.language,
-        L"Режим спасения отключённой Windows: безопасное извлечение данных или принудительная очистка после полной резервной копии. Штатный MSI здесь запустить невозможно.",
-        L"Disconnected Windows rescue: safely extract data or run forced cleanup after a full recovery backup. Its registered MSI cannot run here."));
-    SetText(state.window, IDC_OFFLINE_PATH_LABEL, Tr(state.language, L"Папка Windows", L"Windows folder"));
+        L"Выберите диск с отключённой Windows (например, E:\\) или саму папку Windows (E:\\Windows). Сканирование выполняется только для чтения; на медленном HDD/USB оно может занять несколько минут.",
+        L"Choose the drive containing disconnected Windows (for example, E:\\) or its Windows folder (E:\\Windows). The read-only scan may take several minutes on a slow HDD/USB drive."));
+    SetText(state.window, IDC_OFFLINE_PATH_LABEL, Tr(state.language, L"Диск / Windows", L"Drive / Windows"));
     SetText(state.window, IDC_OFFLINE_BROWSE, Tr(state.language, L"Обзор...", L"Browse..."));
     SetText(state.window, IDC_OFFLINE_SCAN, Tr(state.language, L"Сканировать", L"Scan"));
     SetText(state.window, IDC_OFFLINE_PRODUCTS_LABEL, Tr(state.language, L"Продукты в отключённой Windows", L"Products in disconnected Windows"));
@@ -552,6 +562,28 @@ void SetBusy(AppState& state, bool busy) {
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_DIAGNOSTICS), !state.offline.diagnostics.empty());
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_SAVE), state.offline.valid);
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_CLEAN), state.offline.cleanupCapable && !state.offline.scan.products.empty());
+    }
+}
+
+void SetOfflineScanAnimation(AppState& state, bool scanning) {
+    HWND progress = GetDlgItem(state.window, IDC_PROGRESS);
+    if (!progress) return;
+    LONG_PTR style = GetWindowLongPtrW(progress, GWL_STYLE);
+    if (scanning) {
+        SetWindowLongPtrW(progress, GWL_STYLE, style | PBS_MARQUEE);
+        SetWindowPos(progress, nullptr, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        SendMessageW(progress, PBM_SETMARQUEE, TRUE, 32);
+        SetText(state.window, IDC_OFFLINE_SCAN,
+                Tr(state.language, L"Сканирование…", L"Scanning…"));
+    } else {
+        SendMessageW(progress, PBM_SETMARQUEE, FALSE, 0);
+        SetWindowLongPtrW(progress, GWL_STYLE, style & ~static_cast<LONG_PTR>(PBS_MARQUEE));
+        SetWindowPos(progress, nullptr, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+        SetText(state.window, IDC_OFFLINE_SCAN,
+                Tr(state.language, L"Сканировать", L"Scan"));
     }
 }
 
@@ -675,12 +707,14 @@ bool TypedConfirm(AppState& state, const std::wstring& phrase, const std::wstrin
                            ConfirmDialogProc, reinterpret_cast<LPARAM>(&confirm)) == IDOK;
 }
 
-std::wstring BrowseForFolder(HWND owner, const std::wstring& current) {
+std::wstring BrowseForFolder(HWND owner, const std::wstring& current,
+                             const std::wstring& title = {}) {
     IFileOpenDialog* dialog = nullptr;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog))) || !dialog) return {};
     DWORD options = 0;
     dialog->GetOptions(&options);
     dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+    if (!title.empty()) dialog->SetTitle(title.c_str());
     if (!current.empty()) {
         IShellItem* folder = nullptr;
         if (SUCCEEDED(SHCreateItemFromParsingName(current.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&folder))) && folder) {
@@ -773,17 +807,8 @@ void ReadOfflineSelections(AppState& state) {
     }
 }
 
-void DoOfflineScan(AppState& state) {
-    const std::wstring path = GetText(state.window, IDC_OFFLINE_PATH);
-    if (path.empty()) {
-        MessageBoxW(state.window, Tr(state.language, L"Выберите папку Windows на подключённом диске.", L"Select the Windows folder on the connected drive.").c_str(),
-                    L"CryptoPro Cleanup Utility", MB_OK | MB_ICONWARNING);
-        return;
-    }
-    SetBusy(state, true);
-    state.logPath.clear();
-    state.offline = ScanOfflineWindows(state.language, path,
-        [&](const std::wstring& message, int percent) { UpdateProgress(state, message, percent); });
+void FinishOfflineScan(AppState& state, OfflineScanResult&& result) {
+    state.offline = std::move(result);
     PopulateOfflineLists(state);
     std::wostringstream summary;
     if (state.offline.valid) {
@@ -805,6 +830,56 @@ void DoOfflineScan(AppState& state) {
     SetBusy(state, false);
     if (!state.offline.valid || (state.offline.scan.products.empty() && state.offline.scan.certificates.empty()))
         ShowOfflineDiagnostics(state);
+}
+
+void DoOfflineScan(AppState& state) {
+    const std::wstring path = GetText(state.window, IDC_OFFLINE_PATH);
+    if (path.empty()) {
+        MessageBoxW(state.window, Tr(state.language,
+                    L"Выберите диск, содержащий отключённую Windows (например, E:\\), или саму папку Windows (E:\\Windows).",
+                    L"Select the drive containing disconnected Windows (for example, E:\\), or the Windows folder itself (E:\\Windows).").c_str(),
+                    L"CryptoPro Cleanup Utility", MB_OK | MB_ICONWARNING);
+        return;
+    }
+    SetBusy(state, true);
+    state.logPath.clear();
+    state.offlineScanRunning = true;
+    SetOfflineScanAnimation(state, true);
+    SetText(state.window, IDC_STATUS, Tr(state.language,
+        L"Подготовка сканирования подключённого диска… Не отключайте носитель.",
+        L"Preparing to scan the connected drive… Do not disconnect it."));
+    const HWND window = state.window;
+    const Language language = state.language;
+    try {
+        state.offlineScanThread = std::thread([window, language, path]() {
+            auto result = std::make_unique<OfflineScanResult>();
+            try {
+                *result = ScanOfflineWindows(language, path,
+                    [window](const std::wstring& message, int percent) {
+                        auto update = std::make_unique<OfflineProgressMessage>();
+                        update->message = message;
+                        update->percent = percent;
+                        if (PostMessageW(window, WM_CPC_OFFLINE_PROGRESS, 0,
+                                         reinterpret_cast<LPARAM>(update.get()))) update.release();
+                    });
+            } catch (...) {
+                result->scan.warnings.push_back(Tr(language,
+                    L"Офлайн-сканирование прервано из-за непредвиденной ошибки.",
+                    L"The offline scan stopped because of an unexpected error."));
+                result->diagnostics.push_back(L"Background offline scan failed with an unexpected exception.");
+            }
+            if (PostMessageW(window, WM_CPC_OFFLINE_COMPLETE, 0,
+                             reinterpret_cast<LPARAM>(result.get()))) result.release();
+        });
+    } catch (...) {
+        state.offlineScanRunning = false;
+        SetOfflineScanAnimation(state, false);
+        SetBusy(state, false);
+        MessageBoxW(state.window, Tr(state.language,
+            L"Не удалось запустить фоновое сканирование.",
+            L"The background scan could not be started.").c_str(),
+            L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
+    }
 }
 
 void SaveOfflineData(AppState& state) {
@@ -1095,6 +1170,30 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
         if (state->resumeToken.empty()) DoScan(*state); else ResumeCleanup(*state);
         return TRUE;
     }
+    if (message == WM_CPC_OFFLINE_PROGRESS) {
+        std::unique_ptr<OfflineProgressMessage> update(
+            reinterpret_cast<OfflineProgressMessage*>(lParam));
+        if (update && state->offlineScanRunning) {
+            SetText(state->window, IDC_STATUS,
+                    Tr(state->language, L"Сканирование диска — ", L"Drive scan — ") +
+                    std::to_wstring(std::clamp(update->percent, 0, 100)) + L"%: " + update->message);
+        }
+        return TRUE;
+    }
+    if (message == WM_CPC_OFFLINE_COMPLETE) {
+        std::unique_ptr<OfflineScanResult> result(
+            reinterpret_cast<OfflineScanResult*>(lParam));
+        if (state->offlineScanThread.joinable()) state->offlineScanThread.join();
+        state->offlineScanRunning = false;
+        SetOfflineScanAnimation(*state, false);
+        if (result) FinishOfflineScan(*state, std::move(*result));
+        else SetBusy(*state, false);
+        return TRUE;
+    }
+    if (message == WM_SETCURSOR && state->offlineScanRunning && LOWORD(lParam) == HTCLIENT) {
+        SetCursor(LoadCursorW(nullptr, IDC_APPSTARTING));
+        return TRUE;
+    }
     if (message == WM_COMMAND) {
         switch (LOWORD(wParam)) {
             case IDC_LANGUAGE:
@@ -1118,7 +1217,11 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
             }
                 return TRUE;
             case IDC_OFFLINE_BROWSE: if (!state->busy) {
-                const std::wstring folder = BrowseForFolder(dialog, GetText(dialog, IDC_OFFLINE_PATH));
+                const std::wstring folder = BrowseForFolder(
+                    dialog, GetText(dialog, IDC_OFFLINE_PATH),
+                    Tr(state->language,
+                       L"Выберите диск с Windows или папку Windows",
+                       L"Choose a Windows drive or the Windows folder"));
                 if (!folder.empty()) SetText(dialog, IDC_OFFLINE_PATH, folder);
             }
                 return TRUE;
@@ -1164,11 +1267,27 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
         }
     }
     if (message == WM_DESTROY) {
+        if (state->offlineScanThread.joinable()) state->offlineScanThread.join();
+        MSG pending{};
+        while (PeekMessageW(&pending, dialog, WM_CPC_OFFLINE_PROGRESS,
+                            WM_CPC_OFFLINE_COMPLETE, PM_REMOVE)) {
+            if (pending.message == WM_CPC_OFFLINE_PROGRESS)
+                delete reinterpret_cast<OfflineProgressMessage*>(pending.lParam);
+            else if (pending.message == WM_CPC_OFFLINE_COMPLETE)
+                delete reinterpret_cast<OfflineScanResult*>(pending.lParam);
+        }
         if (state->titleFont) { DeleteObject(state->titleFont); state->titleFont = nullptr; }
         if (state->backgroundBrush) { DeleteObject(state->backgroundBrush); state->backgroundBrush = nullptr; }
         return TRUE;
     }
-    if (message == WM_CLOSE) { if (!state->busy) EndDialog(dialog, 0); return TRUE; }
+    if (message == WM_CLOSE) {
+        if (!state->busy) EndDialog(dialog, 0);
+        else if (state->offlineScanRunning)
+            SetText(state->window, IDC_STATUS, Tr(state->language,
+                L"Сканирование ещё выполняется — дождитесь завершения.",
+                L"The scan is still running — wait for it to finish."));
+        return TRUE;
+    }
     return FALSE;
 }
 
