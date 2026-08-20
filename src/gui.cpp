@@ -50,6 +50,9 @@ struct ConfirmState {
 struct LicenseDialogState {
     Language language = Language::English;
     std::wstring text;
+    std::wstring title;
+    std::wstring warning;
+    std::wstring copiedMessage;
 };
 
 void SetText(HWND dialog, int id, const std::wstring& text) { SetWindowTextW(GetDlgItem(dialog, id), text.c_str()); }
@@ -149,6 +152,7 @@ void LayoutMainDialog(AppState& state, int clientWidth, int clientHeight) {
     PlaceControl(state, &positions, IDC_OFFLINE_CERTS, 0, halfY, dx, dy - halfY);
     PlaceControl(state, &positions, IDC_OFFLINE_SELECT_ALL_CERTS, 0, dy, 0, 0);
     PlaceControl(state, &positions, IDC_OFFLINE_SHOW_LICENSES, 0, dy, 0, 0);
+    PlaceControl(state, &positions, IDC_OFFLINE_DIAGNOSTICS, 0, dy, 0, 0);
     PlaceControl(state, &positions, IDC_OFFLINE_SAVE, dx, dy, 0, 0);
     PlaceControl(state, &positions, IDC_OFFLINE_CLEAN, dx, dy, 0, 0);
 
@@ -460,10 +464,11 @@ void UpdateTabVisibility(AppState& state) {
     ShowWindow(GetDlgItem(state.window, IDC_CLEAN), selected == 0 ? SW_SHOW : SW_HIDE);
     const std::array<int, 4> certificateControls{IDC_CERT_INFO, IDC_CERTIFICATES, IDC_SELECT_ALL_CERTS, IDC_EXPORT_CERTS};
     for (const int id : certificateControls) ShowWindow(GetDlgItem(state.window, id), selected == 1 ? SW_SHOW : SW_HIDE);
-    const std::array<int, 13> offlineControls{
+    const std::array<int, 14> offlineControls{
         IDC_OFFLINE_INFO, IDC_OFFLINE_PATH_LABEL, IDC_OFFLINE_PATH, IDC_OFFLINE_BROWSE, IDC_OFFLINE_SCAN,
         IDC_OFFLINE_PRODUCTS_LABEL, IDC_OFFLINE_PRODUCTS, IDC_OFFLINE_CERTS_LABEL, IDC_OFFLINE_CERTS,
-        IDC_OFFLINE_SELECT_ALL_CERTS, IDC_OFFLINE_SHOW_LICENSES, IDC_OFFLINE_SAVE, IDC_OFFLINE_CLEAN
+        IDC_OFFLINE_SELECT_ALL_CERTS, IDC_OFFLINE_SHOW_LICENSES, IDC_OFFLINE_DIAGNOSTICS,
+        IDC_OFFLINE_SAVE, IDC_OFFLINE_CLEAN
     };
     for (const int id : offlineControls) ShowWindow(GetDlgItem(state.window, id), selected == 2 ? SW_SHOW : SW_HIDE);
 }
@@ -511,6 +516,7 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_OFFLINE_CERTS_LABEL, Tr(state.language, L"Открытые сертификаты профилей и компьютера", L"Public certificates in profiles and local machine"));
     SetText(state.window, IDC_OFFLINE_SELECT_ALL_CERTS, Tr(state.language, L"Выбрать все сертификаты", L"Select all certificates"));
     SetText(state.window, IDC_OFFLINE_SHOW_LICENSES, Tr(state.language, L"Показать / копировать лицензии", L"Show / copy licenses"));
+    SetText(state.window, IDC_OFFLINE_DIAGNOSTICS, Tr(state.language, L"Диагностика...", L"Diagnostics..."));
     SetText(state.window, IDC_OFFLINE_SAVE, Tr(state.language, L"Сохранить найденные данные...", L"Save rescued data..."));
     SetText(state.window, IDC_OFFLINE_CLEAN, Tr(state.language, L"Расширенная офлайн-очистка...", L"Advanced offline cleanup..."));
     HWND tabs = GetDlgItem(state.window, IDC_TAB);
@@ -536,13 +542,14 @@ void SetBusy(AppState& state, bool busy) {
                          IDC_BROWSE, IDC_LANGUAGE, IDC_SCAN, IDC_CLEAN, IDC_SHOW_LICENSES,
                          IDC_CERTIFICATES, IDC_SELECT_ALL_CERTS, IDC_EXPORT_CERTS,
                          IDC_OFFLINE_PATH, IDC_OFFLINE_BROWSE, IDC_OFFLINE_SCAN, IDC_OFFLINE_PRODUCTS,
-                         IDC_OFFLINE_CERTS, IDC_OFFLINE_SELECT_ALL_CERTS, IDC_OFFLINE_SHOW_LICENSES,
+                         IDC_OFFLINE_CERTS, IDC_OFFLINE_SELECT_ALL_CERTS, IDC_OFFLINE_SHOW_LICENSES, IDC_OFFLINE_DIAGNOSTICS,
                          IDC_OFFLINE_SAVE, IDC_OFFLINE_CLEAN}) EnableWindow(GetDlgItem(state.window, id), !busy);
     if (!busy) {
         EnableWindow(GetDlgItem(state.window, IDC_SHOW_LICENSES), !state.scan.licenses.empty());
         EnableWindow(GetDlgItem(state.window, IDC_EXPORT_CERTS), !state.scan.certificates.empty());
         EnableWindow(GetDlgItem(state.window, IDC_CLEAN), !state.scan.products.empty());
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_SHOW_LICENSES), state.offline.valid && !state.offline.scan.licenses.empty());
+        EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_DIAGNOSTICS), !state.offline.diagnostics.empty());
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_SAVE), state.offline.valid);
         EnableWindow(GetDlgItem(state.window, IDC_OFFLINE_CLEAN), state.offline.cleanupCapable && !state.offline.scan.products.empty());
     }
@@ -572,10 +579,11 @@ INT_PTR CALLBACK LicensesDialogProc(HWND dialog, UINT message, WPARAM wParam, LP
     if (message == WM_INITDIALOG) {
         state = reinterpret_cast<LicenseDialogState*>(lParam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, Tr(state->language, L"Лицензии CryptoPro", L"CryptoPro licenses").c_str());
-        SetText(dialog, IDC_LICENSES_WARNING, Tr(state->language,
+        SetWindowTextW(dialog, (state->title.empty() ?
+            Tr(state->language, L"Лицензии CryptoPro", L"CryptoPro licenses") : state->title).c_str());
+        SetText(dialog, IDC_LICENSES_WARNING, state->warning.empty() ? Tr(state->language,
             L"Полные номера являются конфиденциальными. Перед переустановкой Windows сохраните licenses.txt на внешнем диске или в защищённом облаке.",
-            L"Full identifiers are confidential. Before reinstalling Windows, save licenses.txt to external storage or protected cloud storage."));
+            L"Full identifiers are confidential. Before reinstalling Windows, save licenses.txt to external storage or protected cloud storage.") : state->warning);
         SetText(dialog, IDC_LICENSES_TEXT, state->text);
         SetText(dialog, IDC_COPY_LICENSES, Tr(state->language, L"Копировать всё", L"Copy all"));
         SetText(dialog, IDOK, Tr(state->language, L"Закрыть", L"Close"));
@@ -584,8 +592,9 @@ INT_PTR CALLBACK LicensesDialogProc(HWND dialog, UINT message, WPARAM wParam, LP
     if (message == WM_COMMAND && LOWORD(wParam) == IDC_COPY_LICENSES && state) {
         const bool copied = CopyUnicodeText(dialog, state->text);
         MessageBoxW(dialog,
-            Tr(state->language, copied ? L"Лицензия скопирована в буфер обмена." : L"Не удалось открыть буфер обмена.",
-                               copied ? L"License copied to the clipboard." : L"Could not open the clipboard.").c_str(),
+            (copied && !state->copiedMessage.empty() ? state->copiedMessage :
+             Tr(state->language, copied ? L"Текст скопирован в буфер обмена." : L"Не удалось открыть буфер обмена.",
+                                copied ? L"Text copied to the clipboard." : L"Could not open the clipboard.")).c_str(),
             Tr(state->language, L"Копирование", L"Copy").c_str(), MB_OK | (copied ? MB_ICONINFORMATION : MB_ICONERROR));
         return TRUE;
     }
@@ -616,6 +625,27 @@ void ShowLicensesForScan(AppState& state, const ScanResult& scan) {
 }
 
 void ShowLicenses(AppState& state) { ShowLicensesForScan(state, state.scan); }
+
+void ShowOfflineDiagnostics(AppState& state) {
+    std::wostringstream text;
+    text << L"CryptoPro Cleanup Utility " << kVersion << L"\r\n"
+         << L"Offline scan diagnostics / Диагностика офлайн-сканирования\r\n\r\n";
+    for (const auto& line : state.offline.diagnostics) text << line << L"\r\n";
+    if (!state.offline.scan.warnings.empty()) {
+        text << L"\r\nWarnings / Предупреждения:\r\n";
+        for (const auto& warning : state.offline.scan.warnings) text << L"- " << warning << L"\r\n";
+    }
+    LicenseDialogState dialogState;
+    dialogState.language = state.language;
+    dialogState.text = text.str();
+    dialogState.title = Tr(state.language, L"Диагностика офлайн-сканирования", L"Offline scan diagnostics");
+    dialogState.warning = Tr(state.language,
+        L"Здесь нет полных лицензий и содержимого сертификатов, но могут быть путь диска и имена локальных профилей. Скопируйте текст для отчёта об ошибке.",
+        L"This view contains no full licenses or certificate contents, but may include the disk path and local profile names. Copy it when reporting a scan problem.");
+    dialogState.copiedMessage = Tr(state.language, L"Диагностика скопирована.", L"Diagnostics copied.");
+    DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_LICENSES), state.window,
+                    LicensesDialogProc, reinterpret_cast<LPARAM>(&dialogState));
+}
 
 INT_PTR CALLBACK ConfirmDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam) {
     auto* state = reinterpret_cast<ConfirmState*>(GetWindowLongPtrW(dialog, DWLP_USER));
@@ -773,6 +803,8 @@ void DoOfflineScan(AppState& state) {
     AddLogLine(state, summary.str());
     for (const auto& warning : state.offline.scan.warnings) AddLogLine(state, warning);
     SetBusy(state, false);
+    if (!state.offline.valid || (state.offline.scan.products.empty() && state.offline.scan.certificates.empty()))
+        ShowOfflineDiagnostics(state);
 }
 
 void SaveOfflineData(AppState& state) {
@@ -1076,6 +1108,7 @@ INT_PTR CALLBACK MainDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM
             case IDC_SHOW_LICENSES: if (!state->busy) ShowLicenses(*state); return TRUE;
             case IDC_EXPORT_CERTS: if (!state->busy) ExportCertificates(*state); return TRUE;
             case IDC_OFFLINE_SHOW_LICENSES: if (!state->busy) ShowLicensesForScan(*state, state->offline.scan); return TRUE;
+            case IDC_OFFLINE_DIAGNOSTICS: if (!state->busy) ShowOfflineDiagnostics(*state); return TRUE;
             case IDC_OFFLINE_SAVE: if (!state->busy) SaveOfflineData(*state); return TRUE;
             case IDC_OFFLINE_CLEAN: if (!state->busy) StartOfflineCleanup(*state); return TRUE;
             case IDC_OFFLINE_SCAN: if (!state->busy) DoOfflineScan(*state); return TRUE;

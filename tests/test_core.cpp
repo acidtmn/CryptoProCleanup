@@ -35,6 +35,52 @@ bool DeleteGeneratedTree(const std::wstring& path) {
 
 int wmain(int argc, wchar_t** argv) {
     using namespace cpc;
+    if (argc >= 3 && std::wstring(argv[1]) == L"--probe-app-hive") {
+        HKEY root = nullptr;
+        const LONG loaded = RegLoadAppKeyW(argv[2], &root, KEY_READ, 0, 0);
+        std::wcout << L"RegLoadAppKey=" << loaded << L"\n";
+        if (loaded == ERROR_SUCCESS) {
+            const wchar_t* subkey = argc >= 4 ? argv[3] : L"Microsoft";
+            for (const REGSAM access : {KEY_READ, KEY_READ | KEY_WOW64_64KEY,
+                                        KEY_READ | KEY_WOW64_32KEY}) {
+                HKEY child = nullptr;
+                const LONG opened = RegOpenKeyExW(root, subkey, 0, access, &child);
+                std::wcout << L"RegOpenKeyEx(" << subkey << L", 0x" << std::hex << access
+                           << std::dec << L")=" << opened << L"\n";
+                if (child) RegCloseKey(child);
+            }
+            RegCloseKey(root);
+        }
+        return loaded == ERROR_SUCCESS ? 0 : static_cast<int>(loaded);
+    }
+    if (argc >= 3 && std::wstring(argv[1]) == L"--probe-mounted-hive") {
+        OfflineRegistryMount hive;
+        const LONG loaded = hive.Open(argv[2], KEY_READ);
+        std::wcout << L"RegLoadKey=" << loaded << L"\n";
+        LONG opened = loaded;
+        if (loaded == ERROR_SUCCESS) {
+            const wchar_t* subkey = argc >= 4 ? argv[3] : L"Microsoft";
+            HKEY child = nullptr;
+            opened = RegOpenKeyExW(hive.get(), subkey, 0, KEY_READ, &child);
+            std::wcout << L"RegOpenKeyEx(" << subkey << L")=" << opened << L"\n";
+            if (child) RegCloseKey(child);
+        }
+        const LONG unloaded = hive.Close();
+        std::wcout << L"RegUnLoadKey=" << unloaded << L"\n";
+        return loaded == ERROR_SUCCESS && opened == ERROR_SUCCESS && unloaded == ERROR_SUCCESS ? 0 : 1;
+    }
+    if (argc >= 3 && std::wstring(argv[1]) == L"--offline-scan") {
+        const OfflineScanResult offline = ScanOfflineWindows(Language::English, argv[2]);
+        std::cout << "valid=" << offline.valid << " cleanupCapable=" << offline.cleanupCapable
+                  << " products=" << offline.scan.products.size()
+                  << " licenses=" << offline.scan.licenses.size()
+                  << " profiles=" << offline.scan.profiles.size()
+                  << " certificates=" << offline.scan.certificates.size()
+                  << " targets=" << offline.targets.size() << "\n";
+        for (const auto& line : offline.diagnostics) std::cout << "DIAGNOSTIC: " << Utf8(line) << "\n";
+        for (const auto& line : offline.scan.warnings) std::cout << "WARNING: " << Utf8(line) << "\n";
+        return offline.valid ? 0 : 1;
+    }
     Expect(IsCryptoProPublisher(L"Компания КриптоПро"), "Russian publisher");
     Expect(IsCryptoProPublisher(L"Crypto-Pro LLC"), "English publisher");
     Expect(IsCryptoProPublisher(L"CRYPTO PRO"), "Normalized publisher");
@@ -88,6 +134,12 @@ int wmain(int argc, wchar_t** argv) {
     const CommandLineOptions options = ParseCommandLine(4, args);
     Expect(options.scanOnly, "Parse scan switch");
     Expect(options.language == Language::Russian && options.languageExplicit, "Parse language switch");
+
+    wchar_t offlineArg[] = L"--offline-scan";
+    wchar_t offlinePath[] = L"E:\\Windows";
+    wchar_t* offlineArgs[] = {arg0, offlineArg, offlinePath};
+    const CommandLineOptions offlineOptions = ParseCommandLine(3, offlineArgs);
+    Expect(offlineOptions.offlineWindowsPath == offlinePath, "Parse safe offline scan path");
 
     if (argc > 1 && std::wstring(argv[1]) == L"--integration-scan") {
         const ScanResult scan = ScanSystem(Language::English);

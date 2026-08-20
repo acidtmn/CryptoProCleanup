@@ -5,7 +5,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Windows 7–11](https://img.shields.io/badge/Windows-7%20SP1%E2%80%9311-0078D6.svg)](#system-requirements)
 
-> **Status: 0.4.0 release candidate.** Safe scanning was validated on Windows 11 with CryptoPro CSP 5.0, and a user successfully completed full removal and residual cleanup on a live Windows 10 x64 system. The disconnected Windows 7 x86 fix still requires a repeat field test before general availability.
+> **Status: 0.4.0 RC2.** A user successfully completed full removal on a live Windows 10 x64 system. RC1 did not fix the real disconnected Windows 7 x86 disk; RC2 replaces the unsuitable `RegLoadAppKey` path with a system-hive loader and separately supports file-backed certificate stores. The same disk still needs a repeat test.
 
 An unofficial portable utility for backing up license identifiers and public certificates, controlled removal of installed CryptoPro products, and rescue from a disconnected Windows 7 SP1 through Windows 11 installation.
 
@@ -31,9 +31,10 @@ The utility deliberately preserves Windows certificate stores, hardware tokens, 
 - restart-safe continuation, masked JSON reporting, and a privacy-safe operation log;
 - disconnected-Windows rescue for licenses and public certificates;
 - separately confirmed, recovery-backed conservative offline cleanup.
-- explicit native-view access for cross-bitness scanning of disconnected x86/x64 Windows hives;
-- sequential `SOFTWARE`, user `NTUSER.DAT`, and `SYSTEM` loading compatible with the Windows 7 application-hive limit;
-- fallback profile discovery from `Users`, plus public certificates from user and local-machine stores.
+- temporary mounting of real system `SOFTWARE`, `SYSTEM`, and `NTUSER.DAT` hives through `RegLoadKey`, followed by mandatory `RegUnLoadKey` cleanup;
+- fallback profile discovery from `Users`, plus registry-backed user and local-machine public-certificate stores;
+- public-certificate discovery in `AppData\Roaming\Microsoft\SystemCertificates\My\Certificates` without accessing private keys;
+- copyable stage-by-stage offline diagnostics and a safe `--offline-scan` command.
 
 ## System requirements
 
@@ -60,6 +61,12 @@ Safe scan-only CLI:
 
 ```text
 CryptoProCleanup.exe --scan --report C:\Temp\cryptopro-report.json --lang en
+```
+
+Safe disconnected-Windows diagnostics without removal:
+
+```text
+CryptoProCleanup.exe --offline-scan E:\Windows --report C:\Temp\offline-diagnostic.txt --lang en
 ```
 
 Version 0.4.0 has no unattended destructive mode.
