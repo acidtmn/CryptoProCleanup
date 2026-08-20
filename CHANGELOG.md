@@ -2,6 +2,19 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
+## [0.4.0-rc3] - 2026-08-20
+
+### Changed
+
+- Disconnected-Windows scanning now runs on a background thread, keeping the main window responsive while slow HDD/USB media are read.
+- The progress bar uses a continuous marquee during offline scans, the scan button shows an active state, and the status line reports each scan stage.
+- Offline path guidance and the folder-picker title now explicitly say that either a drive root such as `E:\` or its `E:\Windows` directory can be selected.
+
+### Validation
+
+- The user confirmed that RC2 detects the products and full license on the real connected Windows 7 x86 disk and successfully exports its public certificates.
+- Release x86 build and all core tests pass after the asynchronous GUI change.
+
 ## [0.4.0-rc2] - 2026-08-20
 
 ### Fixed
