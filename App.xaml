@@ -1,0 +1,384 @@
+<Application
+    x:Class="CryptoProCleanupModern.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls"/>
+            </ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0B1020"/>
+                    <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="#0E1426"/>
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="#11182B"/>
+                    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#172036"/>
+                    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#202B45"/>
+                    <SolidColorBrush x:Key="SurfacePressedBrush" Color="#293651"/>
+                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#202D52"/>
+                    <SolidColorBrush x:Key="SurfaceDisabledBrush" Color="#111827"/>
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#26334E"/>
+                    <SolidColorBrush x:Key="StrongBorderBrush" Color="#435273"/>
+                    <SolidColorBrush x:Key="DividerBrush" Color="#222D43"/>
+                    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F6F8FF"/>
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#A9B4CC"/>
+                    <SolidColorBrush x:Key="TertiaryTextBrush" Color="#78859F"/>
+                    <SolidColorBrush x:Key="DisabledTextBrush" Color="#58637A"/>
+                    <SolidColorBrush x:Key="InverseTextBrush" Color="#071126"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#A96D87"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#BE819B"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#8E586F"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#3A2532"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#7E5065"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#45D19A"/>
+                    <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#123A31"/>
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#25755C"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#F0BE58"/>
+                    <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#3C311B"/>
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#80652B"/>
+                    <SolidColorBrush x:Key="DangerBrush" Color="#FF7185"/>
+                    <SolidColorBrush x:Key="DangerHoverBrush" Color="#FF8C9C"/>
+                    <SolidColorBrush x:Key="DangerPressedBrush" Color="#DB586C"/>
+                    <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#421F2B"/>
+                    <SolidColorBrush x:Key="DangerBorderBrush" Color="#8B3E50"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#9B5874"/>
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#B46F8C"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#80445F"/>
+                    <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#36415B"/>
+                    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#172036"/>
+                    <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#F6F8FF"/>
+                    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="#202B45"/>
+                    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="#293651"/>
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0E1527"/>
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="#F6F8FF"/>
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="#35425E"/>
+                    <SolidColorBrush x:Key="InputPlaceholderBrush" Color="#78859F"/>
+                    <SolidColorBrush x:Key="BadgeNeutralBackgroundBrush" Color="#263149"/>
+                    <SolidColorBrush x:Key="BadgeNeutralForegroundBrush" Color="#C7D0E3"/>
+                    <SolidColorBrush x:Key="BadgeSuccessBackgroundBrush" Color="#123A31"/>
+                    <SolidColorBrush x:Key="BadgeSuccessForegroundBrush" Color="#73E4B8"/>
+                    <SolidColorBrush x:Key="BadgeWarningBackgroundBrush" Color="#3C311B"/>
+                    <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#FFD47A"/>
+                    <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#421F2B"/>
+                    <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#FF9AAA"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#A96D87"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#D6A9BC"/>
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#B3000000"/>
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#172036"/>
+                    <SolidColorBrush x:Key="DialogForegroundBrush" Color="#F6F8FF"/>
+                    <StaticResource x:Key="NavigationViewItemBackground" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundDisabled" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundChecked" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelected" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForeground" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundChecked" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelected" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedDisabled" ResourceKey="DisabledTextBrush"/>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F4F6FA"/>
+                    <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#EEF2F8"/>
+                    <SolidColorBrush x:Key="SurfacePressedBrush" Color="#E2E8F1"/>
+                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#E7EDFF"/>
+                    <SolidColorBrush x:Key="SurfaceDisabledBrush" Color="#ECEFF4"/>
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#D9DEE8"/>
+                    <SolidColorBrush x:Key="StrongBorderBrush" Color="#AEB8C9"/>
+                    <SolidColorBrush x:Key="DividerBrush" Color="#E5E9F0"/>
+                    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#172033"/>
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#57647A"/>
+                    <SolidColorBrush x:Key="TertiaryTextBrush" Color="#768298"/>
+                    <SolidColorBrush x:Key="DisabledTextBrush" Color="#9AA3B2"/>
+                    <SolidColorBrush x:Key="InverseTextBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#8F526D"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#79435C"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#66384E"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#F4E8ED"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#C49AAF"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#147A55"/>
+                    <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#E3F5ED"/>
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#77BDA3"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#8A5B00"/>
+                    <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#FFF3D6"/>
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#D6AE59"/>
+                    <SolidColorBrush x:Key="DangerBrush" Color="#B4233C"/>
+                    <SolidColorBrush x:Key="DangerHoverBrush" Color="#961B31"/>
+                    <SolidColorBrush x:Key="DangerPressedBrush" Color="#781327"/>
+                    <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#FDE7EB"/>
+                    <SolidColorBrush x:Key="DangerBorderBrush" Color="#DE8796"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#8F526D"/>
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#79435C"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#66384E"/>
+                    <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#BBC5D7"/>
+                    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#172033"/>
+                    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="#EEF2F8"/>
+                    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="#E2E8F1"/>
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="#172033"/>
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="#B9C2D1"/>
+                    <SolidColorBrush x:Key="InputPlaceholderBrush" Color="#768298"/>
+                    <SolidColorBrush x:Key="BadgeNeutralBackgroundBrush" Color="#E8ECF2"/>
+                    <SolidColorBrush x:Key="BadgeNeutralForegroundBrush" Color="#3F4B5F"/>
+                    <SolidColorBrush x:Key="BadgeSuccessBackgroundBrush" Color="#DDF3E9"/>
+                    <SolidColorBrush x:Key="BadgeSuccessForegroundBrush" Color="#116A4A"/>
+                    <SolidColorBrush x:Key="BadgeWarningBackgroundBrush" Color="#FFF0CC"/>
+                    <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#724B00"/>
+                    <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#FBE1E6"/>
+                    <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#991D33"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#8F526D"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#744158"/>
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#66000000"/>
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="DialogForegroundBrush" Color="#172033"/>
+                    <StaticResource x:Key="NavigationViewItemBackground" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundDisabled" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundChecked" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelected" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForeground" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundChecked" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelected" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedDisabled" ResourceKey="DisabledTextBrush"/>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="SurfacePressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="SurfaceDisabledBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="StrongBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="DividerBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="PrimaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="TertiaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="DisabledTextBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
+                    <SolidColorBrush x:Key="InverseTextBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="WarningSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="DangerBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="DangerHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="DangerPressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="DangerSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="DangerBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+                    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+                    <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+                    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="InputPlaceholderBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
+                    <SolidColorBrush x:Key="BadgeNeutralBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BadgeNeutralForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="BadgeSuccessBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BadgeSuccessForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="BadgeWarningBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#99000000"/>
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="DialogForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <StaticResource x:Key="NavigationViewItemBackground" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundDisabled" ResourceKey="NavigationBackgroundBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundChecked" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundCheckedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelected" ResourceKey="SurfaceSelectedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPointerOver" ResourceKey="SurfaceHoverBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedPressed" ResourceKey="SurfacePressedBrush"/>
+                    <StaticResource x:Key="NavigationViewItemBackgroundSelectedDisabled" ResourceKey="SurfaceDisabledBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForeground" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundChecked" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundCheckedDisabled" ResourceKey="DisabledTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelected" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPointerOver" ResourceKey="PrimaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedPressed" ResourceKey="SecondaryTextBrush"/>
+                    <StaticResource x:Key="NavigationViewItemForegroundSelectedDisabled" ResourceKey="DisabledTextBrush"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- 0.5.3 spacing system. Cards use one semantic style so their
+                 content never depends on ad-hoc margins for an inner inset. -->
+            <x:Double x:Key="Space4">4</x:Double>
+            <x:Double x:Key="Space8">8</x:Double>
+            <x:Double x:Key="Space12">12</x:Double>
+            <x:Double x:Key="Space16">16</x:Double>
+            <x:Double x:Key="Space20">20</x:Double>
+            <x:Double x:Key="Space24">24</x:Double>
+            <x:Double x:Key="Space32">32</x:Double>
+            <Thickness x:Key="CardPadding">20</Thickness>
+            <Thickness x:Key="CompactCardPadding">16</Thickness>
+            <Thickness x:Key="StatCardPadding">16,14</Thickness>
+            <Thickness x:Key="CalloutPadding">14</Thickness>
+            <Thickness x:Key="DialogContentPadding">20,12,20,4</Thickness>
+            <Thickness x:Key="TableHeaderPadding">18,16,18,12</Thickness>
+            <Thickness x:Key="TableRowPadding">16,12</Thickness>
+            <Thickness x:Key="TableFooterPadding">16,12</Thickness>
+
+            <Style x:Key="PageTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="30"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+            </Style>
+            <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+            </Style>
+            <Style x:Key="BodyTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+            <Style x:Key="MutedTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{ThemeResource SecondaryTextBrush}"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+            <Style x:Key="ButtonLabelStyle" TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="NoWrap"/>
+            </Style>
+            <Style x:Key="CardChromeStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource SubtleBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="16"/>
+            </Style>
+            <Style x:Key="ContentCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="{StaticResource CardPadding}"/>
+            </Style>
+            <Style x:Key="CompactContentCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="{StaticResource CompactCardPadding}"/>
+            </Style>
+            <Style x:Key="StatCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="{StaticResource StatCardPadding}"/>
+                <Setter Property="MinHeight" Value="92"/>
+            </Style>
+            <Style x:Key="TableCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="0"/>
+            </Style>
+            <Style x:Key="CalloutCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="{StaticResource CalloutPadding}"/>
+                <Setter Property="CornerRadius" Value="12"/>
+            </Style>
+            <Style x:Key="NavigationSafetyCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
+                <Setter Property="Padding" Value="{StaticResource CalloutPadding}"/>
+                <Setter Property="CornerRadius" Value="12"/>
+            </Style>
+            <!-- Compatibility alias for runtime-created chrome only. Authored
+                 content cards must use a semantic style above. -->
+            <Style x:Key="CardBorderStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}"/>
+            <Style x:Key="RoundedButtonStyle" TargetType="Button">
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16,9"/>
+                <Setter Property="Background" Value="{ThemeResource SecondaryButtonBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource SecondaryButtonForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource SubtleBorderBrush}"/>
+            </Style>
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource PrimaryButtonBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryButtonForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource AccentBorderBrush}"/>
+            </Style>
+            <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource DangerBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource InverseTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource DangerBorderBrush}"/>
+            </Style>
+            <Style x:Key="CompactNavigationButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="40"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Background" Value="{ThemeResource NavigationBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource NavigationBackgroundBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="Background" Value="{ThemeResource InputBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource InputForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource InputBorderBrush}"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="Background" Value="{ThemeResource InputBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource InputForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource InputBorderBrush}"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+            <Style TargetType="HyperlinkButton">
+                <Setter Property="Foreground" Value="{ThemeResource AccentBrush}"/>
+            </Style>
+            <Style TargetType="NavigationViewItem">
+                <Setter Property="Background" Value="{ThemeResource NavigationBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

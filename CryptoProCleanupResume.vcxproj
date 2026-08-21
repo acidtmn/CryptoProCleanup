@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{A9B645B3-5600-4EA8-8772-1803483B77B2}</ProjectGuid>
+    <RootNamespace>CryptoProCleanupResume</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries><TargetName>CryptoProCleanupResume</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries><WholeProgramOptimization>true</WholeProgramOptimization><TargetName>CryptoProCleanupResume</TargetName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(MSBuildThisFileDirectory)build\$(Platform)\$(Configuration)\Resume\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)build\obj\$(Platform)\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel><SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x0601;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode><LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreaded</RuntimeLibrary>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem><UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <AdditionalDependencies>advapi32.lib;crypt32.lib;msi.lib;ole32.lib;oleaut32.lib;setupapi.lib;shell32.lib;shlwapi.lib;taskschd.lib;user32.lib;version.lib;wintrust.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/SUBSYSTEM:WINDOWS,6.01 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <Manifest><AdditionalManifestFiles>src\resume.manifest</AdditionalManifestFiles></Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile><FunctionLevelLinking>true</FunctionLevelLinking><IntrinsicFunctions>true</IntrinsicFunctions><DebugInformationFormat>None</DebugInformationFormat></ClCompile>
+    <Link><EnableCOMDATFolding>true</EnableCOMDATFolding><OptimizeReferences>true</OptimizeReferences><GenerateDebugInformation>false</GenerateDebugInformation></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClInclude Include="src\cleanup.hpp" /><ClInclude Include="src\version.hpp" /></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\core.cpp" />
+    <ClCompile Include="src\certificates.cpp" />
+    <ClCompile Include="src\offline_registry.cpp" />
+    <ClCompile Include="src\offline.cpp" />
+    <ClCompile Include="src\resume_main.cpp" />
+  </ItemGroup>
+  <ItemGroup><ResourceCompile Include="src\resume_resources.rc" /></ItemGroup>
+  <ItemGroup><Manifest Include="src\resume.manifest" /><Image Include="assets\CryptoProCleanup.ico" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

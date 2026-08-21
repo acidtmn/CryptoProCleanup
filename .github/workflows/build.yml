@@ -25,10 +25,10 @@ jobs:
         shell: pwsh
         run: .\scripts\build.ps1 -Configuration Release
 
-      - name: Upload portable executable
+      - name: Upload Legacy portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: CryptoProCleanup-win32-${{ github.sha }}
-          path: build/Release/CryptoProCleanup.exe
+          name: CryptoProCleanup-Legacy-x86-${{ github.sha }}
+          path: build/Win32/Release/CryptoProCleanupLegacy.exe
           if-no-files-found: error
           retention-days: 14

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include "version.hpp"
 
 #include <functional>
 #include <map>
@@ -10,9 +11,10 @@
 
 namespace cpc {
 
-constexpr wchar_t kVersion[] = L"0.4.0-rc4";
-
 enum class Language { Russian, English };
+// Registry values are public compatibility data. Do not reorder these values:
+// 0 was the original Dark setting and 1 was the original System setting.
+enum class ThemeMode : DWORD { Dark = 0, System = 1, Light = 2 };
 enum class RiskLevel { Normal, High };
 enum class TargetType {
     File,
@@ -24,9 +26,25 @@ enum class TargetType {
     ScheduledTask,
     Shortcut
 };
+enum class CleanupTargetCategory {
+    File,
+    Directory,
+    Registry,
+    Service,
+    Driver,
+    DriverPackage,
+    Com,
+    Provider,
+    NativeMessagingHost,
+    ScheduledTask,
+    Shortcut,
+    Protected
+};
 enum class Outcome { Succeeded, Skipped, Failed, RebootRequired };
 enum class RegistryHive { LocalMachine, CurrentUser, Users };
 enum class OfflineHive { Software, System };
+enum class CertificateStatus { Unknown, Valid, ExpiringSoon, Expired, NotYetValid };
+enum class FileSignatureState { Valid, Absent, Invalid, Error };
 
 struct RegistryLocation {
     RegistryHive hive = RegistryHive::LocalMachine;
@@ -94,6 +112,7 @@ struct ScanResult {
 
 struct CleanupTarget {
     TargetType type = TargetType::File;
+    CleanupTargetCategory category = CleanupTargetCategory::File;
     std::wstring displayName;
     std::wstring path;
     std::wstring reason;
@@ -165,6 +184,154 @@ struct ExecutionResult {
     bool anyRemoval = false;
 };
 
+enum class ResumeMode { DeferredResidual, ForcedResidual };
+
+struct ResumeAuthorization {
+    ResumeMode mode = ResumeMode::DeferredResidual;
+    bool forceAuthorized = false;
+    bool residualCleanupDeferred = true;
+    bool uninstallerFailurePresent = false;
+    unsigned long attempts = 0;
+
+    bool AllowsResidualPass() const {
+        return forceAuthorized || (residualCleanupDeferred && !uninstallerFailurePresent);
+    }
+};
+
+enum class BackupFolderState {
+    Available,
+    ReadyForProbe,
+    EmptyPath,
+    UnsafeLocation,
+    NotWritable,
+    InsufficientSpace,
+    SameVolume
+};
+
+struct BackupFolderValidation {
+    BackupFolderState state = BackupFolderState::EmptyPath;
+    unsigned long long freeBytes = 0;
+    unsigned long long requiredBytes = 0;
+    std::wstring normalizedPath;
+    std::wstring nearestExistingParent;
+    std::wstring volumeRoot;
+    std::wstring detail;
+    bool probePerformed = false;
+    bool ok() const { return state == BackupFolderState::Available; }
+    bool canProbe() const { return state == BackupFolderState::ReadyForProbe; }
+};
+
+enum class UiOperation {
+    Idle,
+    LiveScan,
+    BuildingPlan,
+    ExportingCertificates,
+    OfflineScan,
+    SavingOfflineData,
+    LiveCleanup,
+    ForcedCleanup,
+    OfflineCleanup,
+    ResumeCleanup,
+    ComputingHash
+};
+
+struct UiOperationToken {
+    unsigned long long generation = 0;
+    explicit operator bool() const { return generation != 0; }
+};
+
+class UiOperationGate {
+public:
+    UiOperationToken TryBeginToken(UiOperation operation) {
+        if (operation == UiOperation::Idle || operation_ != UiOperation::Idle) return {};
+        operation_ = operation;
+        activeGeneration_ = ++lastGeneration_;
+        return {activeGeneration_};
+    }
+    bool TryBegin(UiOperation operation) {
+        return static_cast<bool>(TryBeginToken(operation));
+    }
+    bool Transition(UiOperationToken token, UiOperation operation) {
+        if (!IsCurrent(token) || operation == UiOperation::Idle) return false;
+        operation_ = operation;
+        return true;
+    }
+    bool Transition(UiOperation operation) {
+        if (operation == UiOperation::Idle || operation_ == UiOperation::Idle) return false;
+        operation_ = operation;
+        return true;
+    }
+    bool End(UiOperationToken token) {
+        if (!IsCurrent(token)) return false;
+        operation_ = UiOperation::Idle;
+        activeGeneration_ = 0;
+        return true;
+    }
+    void End() { operation_ = UiOperation::Idle; activeGeneration_ = 0; }
+    bool IsCurrent(UiOperationToken token) const {
+        return token.generation != 0 && token.generation == activeGeneration_ && operation_ != UiOperation::Idle;
+    }
+    UiOperationToken currentToken() const { return {activeGeneration_}; }
+    UiOperation current() const { return operation_; }
+    bool idle() const { return operation_ == UiOperation::Idle; }
+private:
+    UiOperation operation_ = UiOperation::Idle;
+    unsigned long long lastGeneration_ = 0;
+    unsigned long long activeGeneration_ = 0;
+};
+
+struct PlanRevisionTracker {
+    enum class State { NotBuilt, Ready, Stale };
+    unsigned long long scanRevision = 0;
+    unsigned long long productsRevision = 0;
+    unsigned long long profilesRevision = 0;
+    unsigned long long certificatesRevision = 0;
+    unsigned long long backupRevision = 0;
+    unsigned long long planScanRevision = 0;
+    unsigned long long planProductsRevision = 0;
+    unsigned long long planProfilesRevision = 0;
+    unsigned long long planCertificatesRevision = 0;
+    unsigned long long planBackupRevision = 0;
+    bool planReady = false;
+    bool planEverBuilt = false;
+
+    void ScanChanged() { ++scanRevision; planReady = false; }
+    void ProductsChanged() { ++productsRevision; planReady = false; }
+    void ProfilesChanged() { ++profilesRevision; planReady = false; }
+    void CertificatesChanged() { ++certificatesRevision; planReady = false; }
+    void BackupChanged() { ++backupRevision; planReady = false; }
+    // Compatibility alias for older callers: historically all selection
+    // changes were stored in one dimension and meant product selection.
+    void SelectionChanged() { ProductsChanged(); }
+    void PlanBuilt() {
+        planScanRevision = scanRevision;
+        planProductsRevision = productsRevision;
+        planProfilesRevision = profilesRevision;
+        planCertificatesRevision = certificatesRevision;
+        planBackupRevision = backupRevision;
+        planReady = true;
+        planEverBuilt = true;
+    }
+    bool IsPlanCurrent() const {
+        return planReady && planScanRevision == scanRevision &&
+               planProductsRevision == productsRevision &&
+               planProfilesRevision == profilesRevision &&
+               planCertificatesRevision == certificatesRevision &&
+               planBackupRevision == backupRevision;
+    }
+    State CurrentState() const {
+        if (!planEverBuilt) return State::NotBuilt;
+        return IsPlanCurrent() ? State::Ready : State::Stale;
+    }
+    bool SameInputs(PlanRevisionTracker const& other) const {
+        return scanRevision == other.scanRevision &&
+               productsRevision == other.productsRevision &&
+               profilesRevision == other.profilesRevision &&
+               certificatesRevision == other.certificatesRevision &&
+               backupRevision == other.backupRevision;
+    }
+};
+
 struct CommandLineOptions {
     bool scanOnly = false;
     bool showHelp = false;
@@ -178,6 +345,7 @@ struct CommandLineOptions {
 using ProgressCallback = std::function<void(const std::wstring&, int)>;
 
 Language DetectLanguage();
+ThemeMode NormalizeThemeMode(DWORD value);
 std::wstring Tr(Language language, const wchar_t* russian, const wchar_t* english);
 std::wstring ToLower(std::wstring value);
 std::wstring Trim(const std::wstring& value);
@@ -196,6 +364,8 @@ bool IsProtectedPath(const std::wstring& path);
 bool IsProtectedRegistryPath(const std::wstring& path);
 bool IsSafeVendorPath(const std::wstring& path, const std::vector<std::wstring>& approvedRoots);
 bool VerifyCryptoProSignature(const std::wstring& path, std::wstring* signer = nullptr);
+FileSignatureState InspectFileSignature(const std::wstring& path, std::wstring* signer = nullptr,
+                                        LONG* trustStatus = nullptr);
 std::wstring GetLastErrorMessage(DWORD code);
 
 ScanResult ScanSystem(Language language, const ProgressCallback& progress = {});
@@ -223,6 +393,16 @@ ExecutionResult ExecuteCleanup(const CleanupPlan& plan, bool allowForcedCleanup,
 ScanResult VerifyAfterCleanup(Language language, const ProgressCallback& progress = {});
 
 bool EnsureDirectory(const std::wstring& path, std::wstring* error = nullptr);
+BackupFolderValidation ValidateBackupFolder(const std::wstring& path,
+                                            const std::wstring& sourcePath = {},
+                                            unsigned long long minimumFreeBytes = 64ull * 1024 * 1024);
+BackupFolderValidation InspectBackupPath(const std::wstring& path,
+                                         const std::wstring& sourcePath = {},
+                                         unsigned long long minimumFreeBytes = 64ull * 1024 * 1024);
+BackupFolderValidation ProbeBackupFolder(const std::wstring& path,
+                                         const std::wstring& sourcePath = {},
+                                         unsigned long long minimumFreeBytes = 64ull * 1024 * 1024);
+unsigned long long EstimateOfflineBackupMinimum(const OfflineScanResult& offline);
 bool WriteUtf8File(const std::wstring& path, const std::string& content, std::wstring* error = nullptr);
 bool SaveBackup(Language language, const ScanResult& scan, const CleanupPlan& plan, const std::wstring& folder,
                 std::wstring* licensesPath, std::wstring* initialReportPath,
@@ -233,17 +413,58 @@ bool WriteTextSummary(Language language, const std::wstring& path, const ScanRes
 bool WriteJsonReport(const std::wstring& path, const ScanResult& scan,
                      const CleanupPlan* plan, const ExecutionResult* execution,
                      const ScanResult* verification, std::wstring* error = nullptr);
+bool WriteEmergencyCleanupLog(const std::wstring& path, const ScanResult& redactionContext,
+                              const std::wstring& lastCompletedStage,
+                              const ExecutionResult* execution, DWORD errorCode,
+                              std::wstring* error = nullptr);
 bool AppendLog(const std::wstring& path, const std::wstring& line);
+
+size_t CountSelectedCertificates(const std::vector<CertificateEntry>& certificates);
+size_t CountSelectedProducts(const std::vector<InstalledProduct>& products);
+size_t CountVerifiedTargets(const std::vector<CleanupTarget>& targets);
+unsigned long long CertificateExpiryKey(const CertificateEntry& certificate);
+CertificateStatus GetCertificateStatus(const CertificateEntry& certificate,
+                                       const FILETIME* now = nullptr, unsigned soonDays = 30);
+void SetCertificateSelection(std::vector<CertificateEntry>& certificates,
+                             const std::vector<size_t>& indices, bool selected);
+bool IsOfflineConfirmation(const std::wstring& phrase);
+void MergeExecutionResults(ExecutionResult* destination, ExecutionResult source);
+std::wstring RedactSensitiveText(const std::wstring& value, const ScanResult& scan);
+std::wstring BuildResumeCommand(const std::wstring& runnerPath, const std::wstring& token);
+bool IsUsableResumeRunner(const std::wstring& runnerPath, std::wstring* error = nullptr);
+std::wstring ComputeFileSha256(const std::wstring& path, std::wstring* error = nullptr);
 
 bool PrepareResume(const CleanupPlan& plan, const std::wstring& reportFolder,
                    std::wstring* token, std::wstring* error);
+bool PrepareResumeWithRunner(const CleanupPlan& plan, const std::wstring& reportFolder,
+                             const std::wstring& runnerPath, Language language,
+                             std::wstring* token, std::wstring* error,
+                              bool registerRunOnce = true,
+                              const std::wstring& sessionsRootOverride = {});
+bool PrepareResumeAuthorized(const CleanupPlan& plan, const std::wstring& reportFolder,
+                             const std::wstring& runnerPath, Language language,
+                             const ResumeAuthorization& authorization,
+                             std::wstring* token, std::wstring* error,
+                             bool registerRunOnce = true,
+                             const std::wstring& sessionsRootOverride = {});
 bool LoadResumePlan(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
                     std::wstring* reportFolder, std::wstring* error);
+bool LoadResumePlan(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
+                    std::wstring* reportFolder, Language* language, std::wstring* error,
+                    const std::wstring& sessionsRootOverride);
+bool LoadResumePlanAuthorized(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
+                              std::wstring* reportFolder, Language* language,
+                              ResumeAuthorization* authorization, std::wstring* error,
+                              const std::wstring& sessionsRootOverride = {});
 bool CompleteResume(const std::wstring& token, std::wstring* error = nullptr);
-bool RequestSystemRestart(std::wstring* error = nullptr);
+bool CompleteResume(const std::wstring& token, std::wstring* error,
+                    bool removeRunOnce, const std::wstring& sessionsRootOverride);
+int RunResumeCommand(const std::wstring& token, bool showResult,
+                     const ProgressCallback& progress = {});
 
 CommandLineOptions ParseCommandLine(int argc, wchar_t** argv);
-int RunGui(HINSTANCE instance, Language language, const std::wstring& resumeToken);
+int RunGui(HINSTANCE instance, Language language, const std::wstring& resumeToken,
+           bool languageExplicit = false);
 int RunScanCommand(const CommandLineOptions& options);
 int RunOfflineScanCommand(const CommandLineOptions& options);
 

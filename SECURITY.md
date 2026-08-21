@@ -12,4 +12,4 @@ For a suspected vulnerability, do not open a public issue containing reproductio
 
 Для сообщения об уязвимости сначала свяжитесь с автором через [kodalexandrova.ru](https://kodalexandrova.ru), не публикуя чувствительные данные. Укажите версию программы и Windows, а также выполнялось ли удаление.
 
-Only the latest release candidate is actively maintained. Security fixes may be published without compatibility guarantees for older prereleases.
+Only the latest development preview is actively maintained. Security fixes may be published without compatibility guarantees for older previews.

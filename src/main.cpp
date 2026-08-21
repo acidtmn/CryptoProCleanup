@@ -17,20 +17,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ wchar_t*
     cpc::CommandLineOptions options = cpc::ParseCommandLine(argc, rawArguments);
     int result = 0;
     if (options.showHelp) {
+        const std::wstring heading = std::wstring(L"CryptoPro Cleanup Utility ") + cpc::kVersion + L"\r\n\r\n";
         MessageBoxW(nullptr,
-            L"CryptoPro Cleanup Utility\r\n\r\n"
+            (heading +
             L"--scan                 Safe scan only\r\n"
             L"--offline-scan <path>  Safe disconnected-Windows scan\r\n"
             L"--report <path>        Report path\r\n"
             L"--lang ru|en           Interface/report language\r\n"
-            L"--resume <token>       Internal restart continuation",
+            L"--resume <token>       Internal restart continuation").c_str(),
             L"CryptoPro Cleanup Utility", MB_OK | MB_ICONINFORMATION);
     } else if (!options.offlineWindowsPath.empty()) {
         result = cpc::RunOfflineScanCommand(options);
     } else if (options.scanOnly) {
         result = cpc::RunScanCommand(options);
     } else {
-        result = cpc::RunGui(instance, options.language, options.resumeToken);
+        result = cpc::RunGui(instance, options.language, options.resumeToken, options.languageExplicit);
     }
     if (SUCCEEDED(com)) CoUninitialize();
     return result;

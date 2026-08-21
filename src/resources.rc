@@ -2,59 +2,114 @@
 #include <windows.h>
 #include <commctrl.h>
 #include "resource.h"
+#include "version.hpp"
 
 IDI_APP_ICON ICON "../assets/CryptoProCleanup.ico"
 
-IDD_MAIN DIALOGEX 0, 0, 760, 610
+IDD_MAIN DIALOGEX 0, 0, 880, 600
 STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME | WS_CLIPCHILDREN
 EXSTYLE WS_EX_APPWINDOW
 CAPTION "CryptoPro Cleanup Utility"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT           "CryptoPro Cleanup Utility", IDC_TITLE, 12, 10, 520, 18, SS_LEFT
-    COMBOBOX        IDC_LANGUAGE, 666, 8, 80, 70, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Unofficial open-source utility. Not affiliated with Crypto-Pro LLC.", IDC_DISCLAIMER, 12, 29, 734, 20, SS_LEFT
-    CONTROL         "", IDC_TAB, WC_TABCONTROL, WS_TABSTOP, 10, 52, 740, 440
+    ICON            IDI_APP_ICON, IDC_STATIC, 12, 12, 24, 24
+    LTEXT           "CRYPTO PRO", IDC_BRAND, 42, 10, 100, 13
+    LTEXT           "CLEANUP 0.5", IDC_BRAND_VERSION, 42, 25, 100, 11
+    CONTROL         "Overview", IDC_NAV_OVERVIEW, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 62, 130, 28
+    CONTROL         "Certificates", IDC_NAV_CERTIFICATES, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 94, 130, 28
+    CONTROL         "Offline Windows", IDC_NAV_OFFLINE, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 126, 130, 28
+    CONTROL         "Log & reports", IDC_NAV_LOG, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 158, 130, 28
+    CONTROL         "Settings", IDC_NAV_SETTINGS, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 462, 130, 28
+    CONTROL         "About", IDC_NAV_ABOUT, "Button", BS_OWNERDRAW | WS_TABSTOP, 10, 494, 130, 28
+    LTEXT           "Protected mode", IDC_SAFETY_STATE, 14, 536, 122, 28, SS_CENTER
 
-    LTEXT           "Detected products", IDC_PRODUCTS_LABEL, 22, 80, 716, 12
-    CONTROL         "", IDC_PRODUCTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 22, 94, 716, 118
-    LTEXT           "User profiles", IDC_PROFILES_LABEL, 22, 218, 716, 12
-    CONTROL         "", IDC_PROFILES, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 22, 232, 716, 78
-    CONTROL         "Select all", IDC_SELECT_ALL_PROFILES, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 314, 170, 14
-    LTEXT           "Backup folder", IDC_BACKUP_LABEL, 22, 336, 100, 12
-    EDITTEXT        IDC_BACKUP_PATH, 124, 333, 522, 18, ES_AUTOHSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Browse...", IDC_BROWSE, 652, 333, 86, 18
-    LTEXT           "", IDC_BACKUP_INFO, 22, 357, 716, 40, SS_LEFT
-    PUSHBUTTON      "Show / copy license", IDC_SHOW_LICENSES, 22, 426, 180, 22
-    PUSHBUTTON      "Scan", IDC_SCAN, 474, 426, 92, 22
-    DEFPUSHBUTTON   "Remove selected", IDC_CLEAN, 572, 426, 166, 22
+    LTEXT           "SYSTEM / OVERVIEW", IDC_PAGE_EYEBROW, 160, 10, 390, 11
+    LTEXT           "Overview", IDC_TITLE, 160, 25, 500, 25
+    LTEXT           "Installed products and protected data", IDC_DISCLAIMER, 160, 52, 500, 18
+    LTEXT           "Ready", IDC_HEADER_STATUS, 677, 14, 95, 18, SS_CENTER
+    COMBOBOX        IDC_LANGUAGE, 782, 13, 78, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
-    LTEXT           "", IDC_CERT_INFO, 22, 80, 716, 25, SS_LEFT
-    CONTROL         "", IDC_CERTIFICATES, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 22, 110, 716, 277
-    CONTROL         "Select all certificates", IDC_SELECT_ALL_CERTS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 394, 190, 14
-    PUSHBUTTON      "Export selected public certificates...", IDC_EXPORT_CERTS, 458, 418, 280, 24
+    LTEXT           "Products", IDC_STAT_PRODUCTS_CAPTION, 160, 87, 100, 11
+    LTEXT           "0", IDC_STAT_PRODUCTS_VALUE, 160, 101, 100, 22
+    LTEXT           "Licenses", IDC_STAT_LICENSES_CAPTION, 276, 87, 100, 11
+    LTEXT           "0", IDC_STAT_LICENSES_VALUE, 276, 101, 100, 22
+    LTEXT           "Certificates", IDC_STAT_CERTS_CAPTION, 392, 87, 100, 11
+    LTEXT           "0", IDC_STAT_CERTS_VALUE, 392, 101, 100, 22
+    LTEXT           "Profiles", IDC_STAT_PROFILES_CAPTION, 508, 87, 100, 11
+    LTEXT           "0", IDC_STAT_PROFILES_VALUE, 508, 101, 100, 22
 
-    LTEXT           "", IDC_OFFLINE_INFO, 22, 80, 716, 30, SS_LEFT
-    LTEXT           "Windows folder", IDC_OFFLINE_PATH_LABEL, 22, 118, 90, 12
-    EDITTEXT        IDC_OFFLINE_PATH, 114, 115, 442, 18, ES_AUTOHSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Browse...", IDC_OFFLINE_BROWSE, 562, 115, 82, 18
-    PUSHBUTTON      "Scan", IDC_OFFLINE_SCAN, 650, 115, 88, 18
-    LTEXT           "Detected offline products", IDC_OFFLINE_PRODUCTS_LABEL, 22, 141, 716, 12
-    CONTROL         "", IDC_OFFLINE_PRODUCTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 22, 155, 716, 90
-    LTEXT           "Public certificates in offline profiles", IDC_OFFLINE_CERTS_LABEL, 22, 251, 716, 12
-    CONTROL         "", IDC_OFFLINE_CERTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 22, 265, 716, 108
-    CONTROL         "Select all certificates", IDC_OFFLINE_SELECT_ALL_CERTS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 379, 190, 14
-    PUSHBUTTON      "Show / copy licenses", IDC_OFFLINE_SHOW_LICENSES, 22, 414, 176, 24
-    PUSHBUTTON      "Diagnostics...", IDC_OFFLINE_DIAGNOSTICS, 204, 414, 154, 24
-    PUSHBUTTON      "Save rescued data...", IDC_OFFLINE_SAVE, 364, 414, 180, 24
-    PUSHBUTTON      "Advanced offline cleanup...", IDC_OFFLINE_CLEAN, 550, 414, 188, 24
+    LTEXT           "Detected products", IDC_PRODUCTS_LABEL, 160, 137, 470, 12
+    CONTROL         "", IDC_PRODUCTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 160, 153, 470, 170
+    LTEXT           "Cleanup plan", IDC_PLAN_LABEL, 648, 137, 212, 12
+    LTEXT           "Build a read-only verified plan before removal.", IDC_PLAN_SUMMARY, 648, 156, 212, 62, SS_LEFT
+    CONTROL         "Check plan", IDC_CHECK_PLAN, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 228, 212, 25
+    LTEXT           "Certificates, tokens and private-key containers are protected.", IDC_PROTECTED_SUMMARY, 648, 263, 212, 52, SS_LEFT
 
-    CONTROL         "<a href=""https://github.com/acidtmn/CryptoProCleanup"">GitHub</a>", IDC_LINK_GITHUB, WC_LINK, WS_TABSTOP, 10, 498, 132, 15
-    CONTROL         "<a href=""https://kodalexandrova.ru"">Code Alexandrov website</a>", IDC_LINK_WEBSITE, WC_LINK, WS_TABSTOP, 150, 498, 220, 15
-    CONTROL         "<a href=""https://yoomoney.ru/to/4100119195083142"">Support the project</a>", IDC_LINK_SUPPORT, WC_LINK, WS_TABSTOP, 390, 498, 220, 15
-    CONTROL         "", IDC_PROGRESS, PROGRESS_CLASS, PBS_SMOOTH, 10, 521, 740, 10
-    LTEXT           "Ready", IDC_STATUS, 10, 535, 740, 13
-    EDITTEXT        IDC_LOG, 10, 550, 740, 48, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_BORDER
+    LTEXT           "User profiles", IDC_PROFILES_LABEL, 160, 342, 310, 12
+    CONTROL         "", IDC_PROFILES, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 160, 358, 310, 100
+    CONTROL         "Select all profiles", IDC_SELECT_ALL_PROFILES, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 464, 180, 15
+    LTEXT           "Backup folder", IDC_BACKUP_LABEL, 490, 342, 370, 12
+    EDITTEXT        IDC_BACKUP_PATH, 490, 358, 287, 20, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL         "Browse...", IDC_BROWSE, "Button", BS_OWNERDRAW | WS_TABSTOP, 783, 358, 77, 20
+    LTEXT           "", IDC_BACKUP_INFO, 490, 386, 370, 58, SS_LEFT
+    CONTROL         "Show / copy license", IDC_SHOW_LICENSES, "Button", BS_OWNERDRAW | WS_TABSTOP, 490, 452, 177, 25
+    CONTROL         "Scan", IDC_SCAN, "Button", BS_OWNERDRAW | WS_TABSTOP, 675, 452, 82, 25
+    CONTROL         "Remove selected", IDC_CLEAN, "Button", BS_OWNERDRAW | WS_TABSTOP, 765, 452, 95, 25
+
+    LTEXT           "", IDC_CERT_INFO, 160, 86, 700, 30, SS_LEFT
+    EDITTEXT        IDC_CERT_SEARCH, 160, 122, 310, 21, ES_AUTOHSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_CERT_FILTER, 478, 122, 152, 90, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "", IDC_CERTIFICATES, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 160, 151, 470, 330
+    LTEXT           "Certificate details", IDC_CERT_DETAILS_TITLE, 648, 151, 212, 12
+    LTEXT           "Select a certificate to view details.", IDC_CERT_DETAILS, 648, 173, 212, 210, SS_LEFT
+    CONTROL         "Copy thumbprint", IDC_COPY_THUMBPRINT, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 390, 212, 24
+    CONTROL         "Select all certificates", IDC_SELECT_ALL_CERTS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 489, 190, 15
+    LTEXT           "0 selected", IDC_CERT_SELECTED_COUNT, 408, 491, 130, 13, SS_RIGHT
+    CONTROL         "Export selected...", IDC_EXPORT_CERTS, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 455, 212, 26
+
+    LTEXT           "", IDC_OFFLINE_INFO, 160, 84, 700, 31, SS_LEFT
+    LTEXT           "1  Select disk", IDC_OFFLINE_STEP1, 160, 122, 150, 15
+    LTEXT           "2  Read-only scan", IDC_OFFLINE_STEP2, 326, 122, 150, 15
+    LTEXT           "3  Rescue or clean", IDC_OFFLINE_STEP3, 492, 122, 160, 15
+    LTEXT           "Drive / Windows", IDC_OFFLINE_PATH_LABEL, 160, 151, 100, 12
+    EDITTEXT        IDC_OFFLINE_PATH, 262, 148, 398, 21, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL         "Browse...", IDC_OFFLINE_BROWSE, "Button", BS_OWNERDRAW | WS_TABSTOP, 668, 148, 86, 21
+    CONTROL         "Scan", IDC_OFFLINE_SCAN, "Button", BS_OWNERDRAW | WS_TABSTOP, 762, 148, 98, 21
+    LTEXT           "No offline system scanned yet.", IDC_OFFLINE_SUMMARY, 160, 179, 700, 26, SS_LEFT
+    LTEXT           "Detected offline products", IDC_OFFLINE_PRODUCTS_LABEL, 160, 211, 470, 12
+    CONTROL         "", IDC_OFFLINE_PRODUCTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 160, 227, 470, 116
+    LTEXT           "Public certificates", IDC_OFFLINE_CERTS_LABEL, 160, 359, 470, 12
+    CONTROL         "", IDC_OFFLINE_CERTS, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 160, 375, 470, 116
+    CONTROL         "Select all certificates", IDC_OFFLINE_SELECT_ALL_CERTS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 497, 190, 15
+    CONTROL         "Show licenses", IDC_OFFLINE_SHOW_LICENSES, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 227, 212, 24
+    CONTROL         "Diagnostics", IDC_OFFLINE_DIAGNOSTICS, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 258, 212, 24
+    CONTROL         "Save rescued data", IDC_OFFLINE_SAVE, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 404, 212, 26
+    CONTROL         "Advanced offline cleanup", IDC_OFFLINE_CLEAN, "Button", BS_OWNERDRAW | WS_TABSTOP, 648, 455, 212, 26
+
+    LTEXT           "Operations shown here never contain full licenses or certificate data.", IDC_LOG_INFO, 160, 88, 700, 26
+    EDITTEXT        IDC_LOG, 160, 121, 700, 360, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+    CONTROL         "Copy log", IDC_COPY_LOG, "Button", BS_OWNERDRAW | WS_TABSTOP, 160, 490, 120, 24
+    CONTROL         "Open report folder", IDC_OPEN_REPORT_FOLDER, "Button", BS_OWNERDRAW | WS_TABSTOP, 288, 490, 160, 24
+    CONTROL         "Clear view", IDC_CLEAR_LOG, "Button", BS_OWNERDRAW | WS_TABSTOP, 740, 490, 120, 24
+
+    LTEXT           "Theme", IDC_SETTINGS_THEME_LABEL, 160, 104, 180, 12
+    COMBOBOX        IDC_SETTINGS_THEME, 352, 100, 220, 85, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Interface language", IDC_SETTINGS_LANGUAGE_LABEL, 160, 147, 180, 12
+    COMBOBOX        IDC_SETTINGS_LANGUAGE, 352, 143, 220, 85, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Remember window size and last page", IDC_SETTINGS_REMEMBER_WINDOW, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 191, 330, 16
+    LTEXT           "High-contrast mode is detected automatically.", IDC_SETTINGS_HIGH_CONTRAST, 160, 226, 520, 20
+    CONTROL         "Reset interface settings", IDC_SETTINGS_RESET, "Button", BS_OWNERDRAW | WS_TABSTOP, 160, 267, 220, 25
+    LTEXT           "Settings are stored for the current Windows user. They never include licenses, certificate contents or cleanup targets.", IDC_SETTINGS_INFO, 160, 316, 600, 48
+
+    LTEXT           "CryptoPro Cleanup Utility", IDC_ABOUT_TITLE, 160, 105, 650, 28
+    LTEXT           "", IDC_ABOUT_TEXT, 160, 143, 650, 135, SS_LEFT
+    CONTROL         "Copy version information", IDC_ABOUT_COPY_VERSION, "Button", BS_OWNERDRAW | WS_TABSTOP, 160, 292, 220, 25
+    CONTROL         "<a href=""https://github.com/acidtmn/CryptoProCleanup"">GitHub</a>", IDC_ABOUT_GITHUB, WC_LINK, WS_TABSTOP, 160, 344, 220, 17
+    CONTROL         "<a href=""https://kodalexandrova.ru"">kodalexandrova.ru</a>", IDC_ABOUT_WEBSITE, WC_LINK, WS_TABSTOP, 160, 374, 220, 17
+    CONTROL         "<a href=""https://yoomoney.ru/to/4100119195083142"">Support the project</a>", IDC_ABOUT_SUPPORT, WC_LINK, WS_TABSTOP, 160, 404, 220, 17
+
+    CONTROL         "", IDC_PROGRESS, PROGRESS_CLASS, PBS_SMOOTH, 160, 552, 700, 7
+    LTEXT           "Ready", IDC_STATUS, 160, 565, 700, 15
 END
 
 IDD_LICENSES DIALOGEX 0, 0, 470, 278
@@ -68,13 +123,55 @@ BEGIN
     DEFPUSHBUTTON   "Close", IDOK, 374, 250, 86, 18
 END
 
-IDD_TYPED_CONFIRM DIALOGEX 0, 0, 360, 102
+IDD_TYPED_CONFIRM DIALOGEX 0, 0, 430, 188
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Additional confirmation"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT           "", IDC_CONFIRM_TEXT, 10, 10, 340, 34
-    EDITTEXT        IDC_CONFIRM_EDIT, 10, 48, 340, 18, ES_AUTOHSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK", IDOK, 194, 76, 75, 18
-    PUSHBUTTON      "Cancel", IDCANCEL, 275, 76, 75, 18
+    LTEXT           "", IDC_CONFIRM_TEXT, 14, 13, 402, 105
+    EDITTEXT        IDC_CONFIRM_EDIT, 14, 124, 402, 22, ES_AUTOHSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Remove", IDOK, 304, 157, 112, 22
+    DEFPUSHBUTTON   "Cancel", IDCANCEL, 184, 157, 112, 22
+END
+
+IDD_PLAN DIALOGEX 0, 0, 640, 430
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_THICKFRAME
+CAPTION "Verified cleanup plan"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT           "Read-only preview. Protected and unknown items are never deleted automatically.", IDC_PLAN_INFO, 12, 10, 616, 26
+    EDITTEXT        IDC_PLAN_SEARCH, 12, 42, 310, 21, ES_AUTOHSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_PLAN_FILTER, 332, 42, 180, 90, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "", IDC_PLAN_LIST, WC_LISTVIEW, WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS, 12, 72, 616, 310
+    PUSHBUTTON      "Copy plan", IDC_PLAN_COPY, 418, 394, 100, 22
+    DEFPUSHBUTTON   "Close", IDOK, 528, 394, 100, 22
+END
+
+1 VERSIONINFO
+ FILEVERSION CPC_VERSION_NUMERIC
+ PRODUCTVERSION CPC_VERSION_NUMERIC
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Kirill Alexandrov\0"
+            VALUE "FileDescription", "CryptoPro Cleanup Utility\0"
+            VALUE "FileVersion", CPC_VERSION_TEXT "\0"
+            VALUE "InternalName", "CryptoProCleanup\0"
+            VALUE "LegalCopyright", "Copyright (c) 2026 Kirill Alexandrov\0"
+            VALUE "OriginalFilename", "CryptoProCleanup.exe\0"
+            VALUE "ProductName", "CryptoPro Cleanup Utility\0"
+            VALUE "ProductVersion", CPC_VERSION_TEXT "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
 END

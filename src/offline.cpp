@@ -653,7 +653,57 @@ bool DeleteRegistryTreeProtected(HKEY root, const std::wstring& subkey, const st
     return false;
 }
 
+unsigned long long FileLength(const std::wstring& path) {
+    WIN32_FILE_ATTRIBUTE_DATA data{};
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data) ||
+        (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) return 0;
+    ULARGE_INTEGER length{};
+    length.HighPart = data.nFileSizeHigh;
+    length.LowPart = data.nFileSizeLow;
+    return length.QuadPart;
+}
+
+unsigned long long AddSize(unsigned long long left, unsigned long long right) {
+    constexpr unsigned long long cap = 8ull * 1024 * 1024 * 1024 * 1024;
+    if (left >= cap || right >= cap - left) return cap;
+    return left + right;
+}
+
+unsigned long long BackupTreeLength(const std::wstring& path, const std::wstring& offlineRoot,
+                                    unsigned depth = 0) {
+    if (depth > 64 || path.empty() || !PathStartsWith(path, offlineRoot) || IsProtectedPath(path)) return 0;
+    WIN32_FILE_ATTRIBUTE_DATA attributes{};
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attributes) ||
+        (attributes.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) return 0;
+    if (!(attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) return FileLength(path);
+    WIN32_FIND_DATAW data{};
+    HANDLE search = FindFirstFileW(JoinPath(path, L"*").c_str(), &data);
+    if (search == INVALID_HANDLE_VALUE) return 0;
+    unsigned long long total = 0;
+    do {
+        const std::wstring name = data.cFileName;
+        if (name == L"." || name == L".." || (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) continue;
+        total = AddSize(total, BackupTreeLength(JoinPath(path, name), offlineRoot, depth + 1));
+    } while (FindNextFileW(search, &data));
+    FindClose(search);
+    return total;
+}
+
 }  // namespace
+
+unsigned long long EstimateOfflineBackupMinimum(const OfflineScanResult& offline) {
+    constexpr unsigned long long mib = 1024ull * 1024;
+    unsigned long long payload = AddSize(FileLength(offline.softwareHivePath), FileLength(offline.systemHivePath));
+    std::unordered_set<std::wstring> counted;
+    for (const auto& target : offline.targets) {
+        if (!target.verified || target.protectedItem || target.path.empty()) continue;
+        const std::wstring canonical = CanonicalPath(target.path);
+        if (canonical.empty() || !counted.insert(ToLower(canonical)).second) continue;
+        payload = AddSize(payload, BackupTreeLength(canonical, offline.volumeRoot));
+    }
+    const unsigned long long safetyMargin = std::max(128ull * mib, payload / 4);
+    return std::max(256ull * mib, AddSize(payload, safetyMargin));
+}
 
 OfflineScanResult ScanOfflineWindows(Language language, const std::wstring& requestedWindowsDirectory,
                                      const ProgressCallback& progress) {
@@ -849,7 +899,7 @@ bool SaveOfflineBackup(Language language, const OfflineScanResult& offline,
             << L"CryptoPro Cleanup Utility " << kVersion << L"\r\n\r\n"
             << Tr(language, L"Продуктов CryptoPro: ", L"CryptoPro products: ") << offline.scan.products.size() << L"\r\n"
             << Tr(language, L"Полных значений лицензий: ", L"Full license values: ") << offline.scan.licenses.size() << L"\r\n"
-            << Tr(language, L"Открытых сертификатов: ", L"Public certificates: ") << offline.scan.certificates.size() << L"\r\n"
+            << Tr(language, L"Выбранных открытых сертификатов: ", L"Selected public certificates: ") << CountSelectedCertificates(offline.scan.certificates) << L"\r\n"
             << Tr(language, L"Подтверждённых целей офлайн-очистки: ", L"Verified offline cleanup targets: ") << offline.targets.size() << L"\r\n\r\n"
             << Tr(language,
                 L"Закрытые ключи, токены, NTUSER.DAT и защищённые контейнеры не изменялись.",
@@ -859,7 +909,7 @@ bool SaveOfflineBackup(Language language, const OfflineScanResult& offline,
     report << L"{\n  \"schema_version\": 1,\n  \"utility_version\": \"" << kVersion << L"\",\n"
            << L"  \"mode\": \"offline_rescue\",\n  \"products\": " << offline.scan.products.size()
            << L",\n  \"licenses\": " << offline.scan.licenses.size()
-           << L",\n  \"public_certificates\": " << offline.scan.certificates.size()
+           << L",\n  \"public_certificates\": " << CountSelectedCertificates(offline.scan.certificates)
            << L",\n  \"private_keys_exported\": false,\n  \"verified_cleanup_targets\": " << offline.targets.size()
            << L",\n  \"recovery_copies\": " << (includeRecoveryCopies ? L"true" : L"false") << L"\n}\n";
     if (!WriteUtf8File(JoinPath(folder, L"offline-report.json"), Utf8(report.str()), error)) return false;
