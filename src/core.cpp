@@ -15,6 +15,7 @@
 #include <cwctype>
 #include <fstream>
 #include <iomanip>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <unordered_set>
@@ -266,22 +267,48 @@ std::wstring Timestamp() {
 
 std::wstring Redact(const std::wstring& value, const ScanResult& scan) {
     std::wstring result = value;
-    for (const auto& profile : scan.profiles) {
-        for (const auto& sensitive : {profile.profilePath, profile.sid, profile.displayName}) {
-            if (sensitive.empty()) continue;
-            size_t at = 0;
-            while ((at = ToLower(result).find(ToLower(sensitive), at)) != std::wstring::npos) {
-                result.replace(at, sensitive.size(), L"<PROFILE>");
-                at += 9;
-            }
+    auto replaceInsensitive = [&result](const std::wstring& sensitive, const std::wstring& replacement,
+                                        bool tokenBoundaries) {
+        if (sensitive.empty()) return;
+        const std::wstring needle = ToLower(sensitive);
+        size_t at = 0;
+        for (;;) {
+            const std::wstring lower = ToLower(result);
+            at = lower.find(needle, at);
+            if (at == std::wstring::npos) break;
+            const auto tokenCharacter = [](wchar_t ch) { return iswalnum(ch) || ch == L'_'; };
+            const bool leftBoundary = at == 0 || !tokenCharacter(result[at - 1]);
+            const size_t after = at + sensitive.size();
+            const bool rightBoundary = after >= result.size() || !tokenCharacter(result[after]);
+            if (tokenBoundaries && (!leftBoundary || !rightBoundary)) { ++at; continue; }
+            result.replace(at, sensitive.size(), replacement);
+            at += replacement.size();
         }
+    };
+    std::vector<std::wstring> exactProfileValues;
+    std::vector<std::wstring> profileNames;
+    for (const auto& profile : scan.profiles) {
+        if (!profile.profilePath.empty()) exactProfileValues.push_back(profile.profilePath);
+        if (!profile.sid.empty()) exactProfileValues.push_back(profile.sid);
+        if (profile.displayName.size() >= 3) profileNames.push_back(profile.displayName);
     }
+    auto longestFirst = [](const std::wstring& left, const std::wstring& right) { return left.size() > right.size(); };
+    std::sort(exactProfileValues.begin(), exactProfileValues.end(), longestFirst);
+    std::sort(profileNames.begin(), profileNames.end(), longestFirst);
+    for (const auto& sensitive : exactProfileValues) replaceInsensitive(sensitive, L"<PROFILE>", false);
+    for (const auto& sensitive : profileNames) replaceInsensitive(sensitive, L"<PROFILE>", true);
     for (const auto& license : scan.licenses) {
         if (license.fullValue.empty()) continue;
         size_t at = 0;
         while ((at = result.find(license.fullValue, at)) != std::wstring::npos) {
             result.replace(at, license.fullValue.size(), license.maskedValue);
             at += license.maskedValue.size();
+        }
+    }
+    for (const auto& certificate : scan.certificates) {
+        for (const auto& sensitive : {certificate.subject, certificate.issuer}) {
+            if (sensitive.empty()) continue;
+            replaceInsensitive(sensitive, L"<CERTIFICATE>", false);
         }
     }
     return result;
@@ -291,22 +318,19 @@ void ReportProgress(const ProgressCallback& callback, const std::wstring& messag
     if (callback) callback(message, percent);
 }
 
-bool EnablePrivilege(const wchar_t* privilege) {
-    HANDLE raw = nullptr;
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &raw)) return false;
-    ScopedHandle token(raw);
-    TOKEN_PRIVILEGES state{};
-    state.PrivilegeCount = 1;
-    if (!LookupPrivilegeValueW(nullptr, privilege, &state.Privileges[0].Luid)) return false;
-    state.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-    return AdjustTokenPrivileges(token.get(), FALSE, &state, sizeof(state), nullptr, nullptr) && GetLastError() == ERROR_SUCCESS;
-}
-
 }  // namespace
 
 Language DetectLanguage() {
     const LANGID id = GetUserDefaultUILanguage();
     return PRIMARYLANGID(id) == LANG_RUSSIAN ? Language::Russian : Language::English;
+}
+
+ThemeMode NormalizeThemeMode(DWORD value) {
+    switch (value) {
+    case static_cast<DWORD>(ThemeMode::System): return ThemeMode::System;
+    case static_cast<DWORD>(ThemeMode::Light): return ThemeMode::Light;
+    default: return ThemeMode::Dark;
+    }
 }
 
 std::wstring Tr(Language language, const wchar_t* russian, const wchar_t* english) {
@@ -516,8 +540,12 @@ std::wstring GetLastErrorMessage(DWORD code) {
     return result;
 }
 
-bool VerifyCryptoProSignature(const std::wstring& path, std::wstring* signer) {
-    if (!FileExists(path)) return false;
+FileSignatureState InspectFileSignature(const std::wstring& path, std::wstring* signer, LONG* trustStatus) {
+    if (signer) signer->clear();
+    if (!FileExists(path)) {
+        if (trustStatus) *trustStatus = TRUST_E_NOSIGNATURE;
+        return FileSignatureState::Error;
+    }
     WINTRUST_FILE_INFO fileInfo{};
     fileInfo.cbStruct = sizeof(fileInfo);
     fileInfo.pcwszFilePath = path.c_str();
@@ -531,6 +559,7 @@ bool VerifyCryptoProSignature(const std::wstring& path, std::wstring* signer) {
     trust.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL | WTD_SAFER_FLAG;
     GUID policy = WINTRUST_ACTION_GENERIC_VERIFY_V2;
     const LONG status = WinVerifyTrust(nullptr, &policy, &trust);
+    if (trustStatus) *trustStatus = status;
 
     HCERTSTORE store = nullptr;
     HCRYPTMSG message = nullptr;
@@ -560,7 +589,19 @@ bool VerifyCryptoProSignature(const std::wstring& path, std::wstring* signer) {
     trust.dwStateAction = WTD_STATEACTION_CLOSE;
     WinVerifyTrust(nullptr, &policy, &trust);
     if (signer) *signer = signerName;
-    return status == ERROR_SUCCESS && (IsCryptoProPublisher(signerName) || IsCryptoProPublisher(FileCompanyName(path)));
+    if (status == ERROR_SUCCESS) return FileSignatureState::Valid;
+    if (status == TRUST_E_NOSIGNATURE || status == TRUST_E_SUBJECT_FORM_UNKNOWN ||
+        status == TRUST_E_PROVIDER_UNKNOWN) return FileSignatureState::Absent;
+    if (!signerName.empty()) return FileSignatureState::Invalid;
+    return FileSignatureState::Error;
+}
+
+bool VerifyCryptoProSignature(const std::wstring& path, std::wstring* signer) {
+    std::wstring signerName;
+    const auto state = InspectFileSignature(path, &signerName, nullptr);
+    if (signer) *signer = signerName;
+    return state == FileSignatureState::Valid &&
+           (IsCryptoProPublisher(signerName) || IsCryptoProPublisher(FileCompanyName(path)));
 }
 
 namespace {
@@ -874,6 +915,7 @@ void ScanServices(CleanupPlan& plan, const std::vector<std::wstring>& approvedRo
         if (!BelongsToApprovedProduct(executable, approvedRoots)) continue;
         CleanupTarget target;
         target.type = (config->dwServiceType & SERVICE_DRIVER) ? TargetType::DriverService : TargetType::Service;
+        target.category = (config->dwServiceType & SERVICE_DRIVER) ? CleanupTargetCategory::Driver : CleanupTargetCategory::Service;
         target.displayName = services[index].lpDisplayName ? services[index].lpDisplayName : services[index].lpServiceName;
         target.path = services[index].lpServiceName;
         target.reason = L"Service image: " + executable;
@@ -901,6 +943,7 @@ void ScanComRegistrations(CleanupPlan& plan, HKEY hive, RegistryHive hiveId, REG
         if (!BelongsToApprovedProduct(executable, approvedRoots)) continue;
         CleanupTarget target;
         target.type = TargetType::RegistryTree;
+        target.category = CleanupTargetCategory::Com;
         target.displayName = L"COM " + clsid;
         target.path = HiveName(hiveId) + L"\\" + clsidRoot + L"\\" + clsid;
         target.registry = {hiveId, clsidRoot + L"\\" + clsid, view};
@@ -938,6 +981,7 @@ void ScanCryptoProviders(CleanupPlan& plan, REGSAM view, std::unordered_set<std:
         if (!IsCryptoProName(name) || ToLower(name).find(L"microsoft") != std::wstring::npos) continue;
         CleanupTarget target;
         target.type = TargetType::RegistryTree;
+        target.category = CleanupTargetCategory::Provider;
         target.displayName = name;
         target.path = L"HKLM\\" + std::wstring(providers) + L"\\" + name;
         target.registry = {RegistryHive::LocalMachine, std::wstring(providers) + L"\\" + name, view};
@@ -957,6 +1001,7 @@ void ScanNativeMessagingRoot(CleanupPlan& plan, HKEY hive, RegistryHive hiveId, 
         if (!BelongsToApprovedProduct(manifest, approvedRoots)) continue;
         CleanupTarget target;
         target.type = TargetType::RegistryTree;
+        target.category = CleanupTargetCategory::NativeMessagingHost;
         target.displayName = L"Browser native host " + host;
         target.path = HiveName(hiveId) + L"\\" + rootPath + L"\\" + host;
         target.registry = {hiveId, rootPath + L"\\" + host, view};
@@ -1034,6 +1079,7 @@ void ScanDriverPackages(CleanupPlan& plan, std::unordered_set<std::wstring>& ide
         if (!vendor || !driver) continue;
         CleanupTarget target;
         target.type = TargetType::DriverPackage;
+        target.category = CleanupTargetCategory::DriverPackage;
         target.displayName = data.cFileName;
         target.path = data.cFileName;
         target.reason = L"OEM INF declares CryptoPro driver files";
@@ -1082,6 +1128,7 @@ void ScanShortcutsRecursive(CleanupPlan& plan, const std::wstring& directory, in
         if (!ResolveShortcut(path, &targetPath) || !BelongsToApprovedProduct(targetPath, approvedRoots)) continue;
         CleanupTarget target;
         target.type = TargetType::Shortcut;
+        target.category = CleanupTargetCategory::Shortcut;
         target.displayName = name;
         target.path = path;
         target.reason = L"Shortcut target: " + targetPath;
@@ -1145,6 +1192,7 @@ void ScanTaskFolder(CleanupPlan& plan, ITaskFolder* folder, const std::vector<st
                     if (SUCCEEDED(task->get_Path(&rawPath)) && rawPath) {
                         CleanupTarget target;
                         target.type = TargetType::ScheduledTask;
+                        target.category = CleanupTargetCategory::ScheduledTask;
                         target.displayName = rawPath;
                         target.path = rawPath;
                         target.reason = L"Scheduled task executable: " + executable;
@@ -1190,6 +1238,7 @@ void AddDefaultResidualTargets(CleanupPlan& plan, std::unordered_set<std::wstrin
         if (!DirectoryExists(root)) continue;
         CleanupTarget target;
         target.type = TargetType::Directory;
+        target.category = CleanupTargetCategory::Directory;
         target.displayName = root;
         target.path = root;
         target.reason = L"Verified default CryptoPro vendor root";
@@ -1199,6 +1248,7 @@ void AddDefaultResidualTargets(CleanupPlan& plan, std::unordered_set<std::wstrin
     for (const REGSAM view : {KEY_WOW64_32KEY, KEY_WOW64_64KEY}) {
         CleanupTarget target;
         target.type = TargetType::RegistryTree;
+        target.category = CleanupTargetCategory::Registry;
         target.displayName = L"Crypto Pro registry root";
         target.path = L"HKLM\\SOFTWARE\\Crypto Pro";
         target.registry = {RegistryHive::LocalMachine, L"SOFTWARE\\Crypto Pro", view};
@@ -1211,6 +1261,7 @@ void AddDefaultResidualTargets(CleanupPlan& plan, std::unordered_set<std::wstrin
         if (!profile.selected) continue;
         CleanupTarget target;
         target.type = TargetType::RegistryTree;
+        target.category = CleanupTargetCategory::Registry;
         target.displayName = L"Selected user Crypto Pro settings";
         target.path = L"PROFILE:" + profile.sid;
         target.registry = {RegistryHive::Users, L"SOFTWARE\\Crypto Pro", 0};
@@ -1241,6 +1292,7 @@ CleanupPlan BuildCleanupPlan(const ScanResult& scan, const ProgressCallback& pro
             approvedRoots.push_back(product.installLocation);
             CleanupTarget directory;
             directory.type = TargetType::Directory;
+            directory.category = CleanupTargetCategory::Directory;
             directory.displayName = product.displayName;
             directory.path = product.installLocation;
             directory.reason = L"InstallLocation of a confirmed CryptoPro publisher entry";
@@ -1249,6 +1301,7 @@ CleanupPlan BuildCleanupPlan(const ScanResult& scan, const ProgressCallback& pro
         }
         CleanupTarget uninstallKey;
         uninstallKey.type = TargetType::RegistryTree;
+        uninstallKey.category = CleanupTargetCategory::Registry;
         uninstallKey.displayName = product.displayName + L" uninstall entry";
         uninstallKey.path = HiveName(product.hive) + L"\\" + product.registryKey;
         uninstallKey.registry = {product.hive, product.registryKey, product.registryView};
@@ -1694,6 +1747,122 @@ bool EnsureDirectory(const std::wstring& path, std::wstring* error) {
     return false;
 }
 
+BackupFolderValidation InspectBackupPath(const std::wstring& path,
+                                         const std::wstring& sourcePath,
+                                         unsigned long long minimumFreeBytes) {
+    BackupFolderValidation result;
+    result.requiredBytes = minimumFreeBytes;
+    const std::wstring trimmed = Trim(path);
+    if (trimmed.empty()) { result.detail = L"The backup path is empty."; return result; }
+    const std::wstring canonical = CanonicalPath(trimmed);
+    result.normalizedPath = canonical;
+    std::array<wchar_t, MAX_PATH> backupVolume{};
+    if (canonical.empty() || !GetVolumePathNameW(canonical.c_str(), backupVolume.data(),
+                                                 static_cast<DWORD>(backupVolume.size()))) {
+        result.state = BackupFolderState::NotWritable;
+        result.detail = L"The backup volume could not be resolved.";
+        return result;
+    }
+    result.volumeRoot = CanonicalPath(backupVolume.data());
+    std::array<wchar_t, MAX_PATH> windowsDirectory{};
+    GetWindowsDirectoryW(windowsDirectory.data(), static_cast<UINT>(windowsDirectory.size()));
+    const std::vector<std::wstring> unsuitableRoots{
+        windowsDirectory.data(), ExpandEnvironment(L"%ProgramFiles%"),
+        ExpandEnvironment(L"%ProgramFiles(x86)%")
+    };
+    if (IsProtectedPath(canonical) ||
+        ToLower(canonical) == ToLower(CanonicalPath(backupVolume.data())) ||
+        std::any_of(unsuitableRoots.begin(), unsuitableRoots.end(), [&](const std::wstring& root) {
+            return !root.empty() && PathStartsWith(canonical, root);
+        })) {
+        result.state = BackupFolderState::UnsafeLocation;
+        result.detail = L"The selected location is protected or unsuitable for a backup.";
+        return result;
+    }
+    if (!sourcePath.empty()) {
+        std::array<wchar_t, MAX_PATH> sourceVolume{};
+        if (!GetVolumePathNameW(sourcePath.c_str(), sourceVolume.data(), static_cast<DWORD>(sourceVolume.size())) ||
+            ToLower(CanonicalPath(sourceVolume.data())) == ToLower(CanonicalPath(backupVolume.data()))) {
+            result.state = BackupFolderState::SameVolume;
+            result.detail = L"Offline cleanup requires a backup on another volume.";
+            return result;
+        }
+    }
+    const DWORD targetAttributes = GetFileAttributesW(canonical.c_str());
+    if (targetAttributes != INVALID_FILE_ATTRIBUTES && !(targetAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        result.state = BackupFolderState::NotWritable;
+        result.detail = L"The backup path points to a file.";
+        return result;
+    }
+    std::wstring existing = canonical;
+    while (!DirectoryExists(existing)) {
+        std::wstring parent = ParentPath(existing);
+        if (parent.size() == 2 && parent[1] == L':') parent += L'\\';
+        if (parent.empty() || ToLower(parent) == ToLower(existing)) break;
+        existing = std::move(parent);
+    }
+    if (!DirectoryExists(existing)) existing = backupVolume.data();
+    if (!DirectoryExists(existing)) {
+        result.state = BackupFolderState::NotWritable;
+        result.detail = L"No existing parent folder could be resolved.";
+        return result;
+    }
+    result.nearestExistingParent = CanonicalPath(existing);
+    ULARGE_INTEGER available{}, total{}, free{};
+    if (!GetDiskFreeSpaceExW(existing.c_str(), &available, &total, &free)) {
+        result.state = BackupFolderState::NotWritable;
+        result.detail = GetLastErrorMessage(GetLastError());
+        return result;
+    }
+    result.freeBytes = available.QuadPart;
+    if (available.QuadPart < minimumFreeBytes) {
+        result.state = BackupFolderState::InsufficientSpace;
+        result.detail = L"There is not enough free space for the backup.";
+        return result;
+    }
+    result.state = BackupFolderState::ReadyForProbe;
+    result.detail = L"The backup path passed read-only inspection.";
+    return result;
+}
+
+BackupFolderValidation ProbeBackupFolder(const std::wstring& path,
+                                         const std::wstring& sourcePath,
+                                         unsigned long long minimumFreeBytes) {
+    BackupFolderValidation result = InspectBackupPath(path, sourcePath, minimumFreeBytes);
+    if (!result.canProbe()) return result;
+    const std::wstring probeParent = DirectoryExists(result.normalizedPath)
+        ? result.normalizedPath : result.nearestExistingParent;
+    const std::wstring probe = JoinPath(probeParent, L".cryptopro-cleanup-write-test-" +
+        std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L".tmp");
+    {
+        ScopedHandle file(CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
+                                      FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr));
+        result.probePerformed = true;
+        if (!file) {
+            result.state = BackupFolderState::NotWritable;
+            result.detail = GetLastErrorMessage(GetLastError());
+            return result;
+        }
+        constexpr char marker[] = "CryptoPro Cleanup backup write test\r\n";
+        DWORD written = 0;
+        if (!WriteFile(file.get(), marker, static_cast<DWORD>(sizeof(marker) - 1), &written, nullptr) ||
+            written != sizeof(marker) - 1 || !FlushFileBuffers(file.get())) {
+            result.state = BackupFolderState::NotWritable;
+            result.detail = GetLastErrorMessage(GetLastError());
+            return result;
+        }
+    }
+    result.state = BackupFolderState::Available;
+    result.detail = L"The backup folder is writable.";
+    return result;
+}
+
+BackupFolderValidation ValidateBackupFolder(const std::wstring& path,
+                                            const std::wstring& sourcePath,
+                                            unsigned long long minimumFreeBytes) {
+    return ProbeBackupFolder(path, sourcePath, minimumFreeBytes);
+}
+
 bool WriteUtf8File(const std::wstring& path, const std::string& content, std::wstring* error) {
     const std::wstring parent = ParentPath(path);
     if (!parent.empty() && !EnsureDirectory(parent, error)) return false;
@@ -1714,6 +1883,103 @@ bool AppendLog(const std::wstring& path, const std::wstring& line) {
     const std::string bytes = Utf8(L"[" + Timestamp() + L"] " + line + L"\r\n");
     DWORD written = 0;
     return WriteFile(file.get(), bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) && written == bytes.size();
+}
+
+size_t CountSelectedCertificates(const std::vector<CertificateEntry>& certificates) {
+    return static_cast<size_t>(std::count_if(certificates.begin(), certificates.end(),
+        [](const CertificateEntry& certificate) { return certificate.selected; }));
+}
+
+size_t CountSelectedProducts(const std::vector<InstalledProduct>& products) {
+    return static_cast<size_t>(std::count_if(products.begin(), products.end(),
+        [](const InstalledProduct& product) { return product.selected; }));
+}
+
+size_t CountVerifiedTargets(const std::vector<CleanupTarget>& targets) {
+    return static_cast<size_t>(std::count_if(targets.begin(), targets.end(),
+        [](const CleanupTarget& target) { return target.verified && !target.protectedItem; }));
+}
+
+unsigned long long CertificateExpiryKey(const CertificateEntry& certificate) {
+    if (!certificate.encoded.empty()) {
+        PCCERT_CONTEXT context = CertCreateCertificateContext(
+            X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, certificate.encoded.data(),
+            static_cast<DWORD>(certificate.encoded.size()));
+        if (context) {
+            ULARGE_INTEGER value{};
+            value.LowPart = context->pCertInfo->NotAfter.dwLowDateTime;
+            value.HighPart = context->pCertInfo->NotAfter.dwHighDateTime;
+            CertFreeCertificateContext(context);
+            return value.QuadPart;
+        }
+    }
+    unsigned day = 0, month = 0, year = 0;
+    if (swscanf_s(certificate.validTo.c_str(), L"%u.%u.%u", &day, &month, &year) == 3) {
+        SYSTEMTIME time{};
+        time.wDay = static_cast<WORD>(day);
+        time.wMonth = static_cast<WORD>(month);
+        time.wYear = static_cast<WORD>(year);
+        FILETIME fileTime{};
+        if (SystemTimeToFileTime(&time, &fileTime)) {
+            ULARGE_INTEGER value{};
+            value.LowPart = fileTime.dwLowDateTime;
+            value.HighPart = fileTime.dwHighDateTime;
+            return value.QuadPart;
+        }
+    }
+    return 0;
+}
+
+CertificateStatus GetCertificateStatus(const CertificateEntry& certificate,
+                                       const FILETIME* now, unsigned soonDays) {
+    if (certificate.encoded.empty()) return CertificateStatus::Unknown;
+    PCCERT_CONTEXT context = CertCreateCertificateContext(
+        X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, certificate.encoded.data(),
+        static_cast<DWORD>(certificate.encoded.size()));
+    if (!context) return CertificateStatus::Unknown;
+    FILETIME current{};
+    if (now) current = *now;
+    else GetSystemTimeAsFileTime(&current);
+    const LONG validity = CertVerifyTimeValidity(&current, context->pCertInfo);
+    const FILETIME expiry = context->pCertInfo->NotAfter;
+    CertFreeCertificateContext(context);
+    if (validity > 0) return CertificateStatus::Expired;
+    if (validity < 0) return CertificateStatus::NotYetValid;
+    ULARGE_INTEGER currentValue{}, expiryValue{};
+    currentValue.LowPart = current.dwLowDateTime;
+    currentValue.HighPart = current.dwHighDateTime;
+    expiryValue.LowPart = expiry.dwLowDateTime;
+    expiryValue.HighPart = expiry.dwHighDateTime;
+    constexpr unsigned long long ticksPerDay = 864000000000ULL;
+    const unsigned long long threshold = static_cast<unsigned long long>(soonDays) * ticksPerDay;
+    return expiryValue.QuadPart >= currentValue.QuadPart &&
+           expiryValue.QuadPart - currentValue.QuadPart <= threshold
+        ? CertificateStatus::ExpiringSoon : CertificateStatus::Valid;
+}
+
+void SetCertificateSelection(std::vector<CertificateEntry>& certificates,
+                             const std::vector<size_t>& indices, bool selected) {
+    for (const size_t index : indices)
+        if (index < certificates.size()) certificates[index].selected = selected;
+}
+
+bool IsOfflineConfirmation(const std::wstring& phrase) {
+    return phrase == L"OFFLINE";
+}
+
+void MergeExecutionResults(ExecutionResult* destination, ExecutionResult source) {
+    if (!destination) return;
+    destination->rebootRequired = destination->rebootRequired || source.rebootRequired;
+    destination->residualCleanupDeferred = destination->residualCleanupDeferred || source.residualCleanupDeferred;
+    destination->anyFailure = destination->anyFailure || source.anyFailure;
+    destination->anyRemoval = destination->anyRemoval || source.anyRemoval;
+    destination->operations.insert(destination->operations.end(),
+                                   std::make_move_iterator(source.operations.begin()),
+                                   std::make_move_iterator(source.operations.end()));
+}
+
+std::wstring RedactSensitiveText(const std::wstring& value, const ScanResult& scan) {
+    return Redact(value, scan);
 }
 
 namespace {
@@ -1785,7 +2051,9 @@ bool WriteJsonReport(const std::wstring& path, const ScanResult& scan, const Cle
     for (size_t index = 0; index < scan.warnings.size(); ++index) { if (index) out << L", "; JsonString(out, Redact(scan.warnings[index], scan)); }
     out << L"]";
     if (plan) {
-        out << L",\n  \"cleanup_plan\": {\"all_detected_products_selected\": " << (plan->allDetectedProductsSelected ? L"true" : L"false") << L", \"targets\": [\n";
+        out << L",\n  \"cleanup_plan\": {\"all_detected_products_selected\": " << (plan->allDetectedProductsSelected ? L"true" : L"false")
+            << L", \"selected_products\": " << CountSelectedProducts(plan->products)
+            << L", \"verified_targets\": " << CountVerifiedTargets(plan->targets) << L", \"targets\": [\n";
         for (size_t index = 0; index < plan->targets.size(); ++index) {
             const auto& target = plan->targets[index];
             out << L"    {\"type\": \"" << TargetTypeName(target.type) << L"\", \"target\": ";
@@ -1872,8 +2140,8 @@ bool WriteTextSummary(Language language, const std::wstring& path, const ScanRes
     if (plan) {
         out << Tr(language, L"ПЛАН ОЧИСТКИ", L"CLEANUP PLAN") << L"\r\n"
             << Tr(language, L"  Выбрано продуктов: ", L"  Selected products: ")
-            << std::count_if(plan->products.begin(), plan->products.end(), [](const InstalledProduct& product) { return product.selected; }) << L"\r\n"
-            << Tr(language, L"  Подтверждённых целей: ", L"  Verified targets: ") << plan->targets.size() << L"\r\n\r\n";
+            << CountSelectedProducts(plan->products) << L"\r\n"
+            << Tr(language, L"  Подтверждённых целей: ", L"  Verified targets: ") << CountVerifiedTargets(plan->targets) << L"\r\n\r\n";
     }
 
     if (execution) {
@@ -1909,6 +2177,27 @@ bool WriteTextSummary(Language language, const std::wstring& path, const ScanRes
         << Tr(language,
               L"Перед переустановкой Windows скопируйте всю папку на внешний носитель или в защищённое облако.",
               L"Before reinstalling Windows, copy the entire folder to external storage or protected cloud storage.") << L"\r\n";
+    return WriteUtf8File(path, Utf8(out.str()), error);
+}
+
+bool WriteEmergencyCleanupLog(const std::wstring& path, const ScanResult& redactionContext,
+                              const std::wstring& lastCompletedStage,
+                              const ExecutionResult* execution, DWORD errorCode,
+                              std::wstring* error) {
+    std::wostringstream out;
+    out << L"CryptoPro Cleanup Utility " << kVersion << L"\r\n"
+        << L"EMERGENCY CLEANUP RECORD\r\n"
+        << L"Timestamp: " << Timestamp() << L"\r\n"
+        << L"Last completed stage: " << Redact(lastCompletedStage, redactionContext) << L"\r\n"
+        << L"Error code: " << errorCode << L"\r\n"
+        << L"Manual verification is required.\r\n\r\n";
+    if (execution) {
+        for (const auto& operation : execution->operations)
+            out << L"[" << OutcomeName(operation.outcome) << L"] "
+                << Redact(operation.action, redactionContext) << L" | "
+                << Redact(operation.target, redactionContext) << L" | "
+                << Redact(operation.message, redactionContext) << L"\r\n";
+    }
     return WriteUtf8File(path, Utf8(out.str()), error);
 }
 
@@ -2003,12 +2292,13 @@ bool ApplyPrivateAcl(const std::wstring& path, bool directory, std::wstring* err
     return ok;
 }
 
-std::wstring ResumeRoot() {
-    return JoinPath(GetProgramData(), L"CryptoProCleanup\\Sessions");
+std::wstring ResumeRoot(const std::wstring& overrideRoot = {}) {
+    return overrideRoot.empty() ? JoinPath(GetProgramData(), L"CryptoProCleanup\\Sessions")
+                                : CanonicalPath(overrideRoot);
 }
 
-std::wstring ResumeSessionPath(const std::wstring& token) {
-    return JoinPath(ResumeRoot(), token);
+std::wstring ResumeSessionPath(const std::wstring& token, const std::wstring& overrideRoot = {}) {
+    return JoinPath(ResumeRoot(overrideRoot), token);
 }
 
 bool ReadStateLines(const std::wstring& path, std::multimap<std::wstring, std::wstring>* values, std::wstring* error) {
@@ -2031,10 +2321,256 @@ std::wstring CurrentExecutablePath() {
     return size ? std::wstring(buffer.data(), size) : std::wstring();
 }
 
+std::vector<std::wstring> SplitStateFields(const std::wstring& value) {
+    std::vector<std::wstring> fields;
+    size_t start = 0;
+    for (;;) {
+        const size_t separator = value.find(L'|', start);
+        fields.push_back(value.substr(start, separator == std::wstring::npos ? separator : separator - start));
+        if (separator == std::wstring::npos) break;
+        start = separator + 1;
+    }
+    return fields;
+}
+
+unsigned long ParseStateNumber(const std::wstring& value, unsigned long fallback = 0) {
+    wchar_t* end = nullptr;
+    const unsigned long parsed = wcstoul(value.c_str(), &end, 10);
+    return end && *end == L'\0' ? parsed : fallback;
+}
+
+std::wstring SerializeResumeProduct(const InstalledProduct& product) {
+    std::wostringstream line;
+    line << (product.selected ? 1 : 0) << L"|" << (product.msi ? 1 : 0) << L"|"
+         << static_cast<int>(product.risk) << L"|" << static_cast<int>(product.hive) << L"|"
+         << product.registryView << L"|" << HexEncode(product.displayName) << L"|"
+         << HexEncode(product.version) << L"|" << HexEncode(product.publisher) << L"|"
+         << HexEncode(product.architecture) << L"|" << HexEncode(product.uninstallString) << L"|"
+         << HexEncode(product.quietUninstallString) << L"|" << HexEncode(product.installLocation) << L"|"
+         << HexEncode(product.registryKey) << L"|" << HexEncode(product.productCode);
+    return line.str();
+}
+
+bool DeserializeResumeProduct(const std::wstring& value, InstalledProduct* product) {
+    if (!product) return false;
+    const auto fields = SplitStateFields(value);
+    if (fields.size() != 14) return false;
+    product->selected = fields[0] == L"1";
+    product->msi = fields[1] == L"1";
+    product->risk = static_cast<RiskLevel>(ParseStateNumber(fields[2]));
+    product->hive = static_cast<RegistryHive>(ParseStateNumber(fields[3]));
+    product->registryView = static_cast<REGSAM>(ParseStateNumber(fields[4]));
+    product->displayName = HexDecode(fields[5]);
+    product->version = HexDecode(fields[6]);
+    product->publisher = HexDecode(fields[7]);
+    product->architecture = HexDecode(fields[8]);
+    product->uninstallString = HexDecode(fields[9]);
+    product->quietUninstallString = HexDecode(fields[10]);
+    product->installLocation = HexDecode(fields[11]);
+    product->registryKey = HexDecode(fields[12]);
+    product->productCode = HexDecode(fields[13]);
+    return !product->displayName.empty() && IsCryptoProPublisher(product->publisher);
+}
+
+std::wstring SerializeResumeTarget(const CleanupTarget& target) {
+    std::wostringstream line;
+    line << static_cast<int>(target.type) << L"|" << (target.verified ? 1 : 0) << L"|"
+         << (target.protectedItem ? 1 : 0) << L"|" << static_cast<int>(target.registry.hive) << L"|"
+         << target.registry.view << L"|" << HexEncode(target.displayName) << L"|"
+         << HexEncode(target.path) << L"|" << HexEncode(target.reason) << L"|"
+         << HexEncode(target.registry.subkey);
+    return line.str();
+}
+
+bool DeserializeResumeTarget(const std::wstring& value, CleanupTarget* target) {
+    if (!target) return false;
+    const auto fields = SplitStateFields(value);
+    if (fields.size() != 9) return false;
+    target->type = static_cast<TargetType>(ParseStateNumber(fields[0]));
+    switch (target->type) {
+        case TargetType::Directory: target->category = CleanupTargetCategory::Directory; break;
+        case TargetType::RegistryTree: target->category = CleanupTargetCategory::Registry; break;
+        case TargetType::Service: target->category = CleanupTargetCategory::Service; break;
+        case TargetType::DriverService: target->category = CleanupTargetCategory::Driver; break;
+        case TargetType::DriverPackage: target->category = CleanupTargetCategory::DriverPackage; break;
+        case TargetType::ScheduledTask: target->category = CleanupTargetCategory::ScheduledTask; break;
+        case TargetType::Shortcut: target->category = CleanupTargetCategory::Shortcut; break;
+        default: target->category = CleanupTargetCategory::File; break;
+    }
+    target->verified = fields[1] == L"1";
+    target->protectedItem = fields[2] == L"1";
+    target->registry.hive = static_cast<RegistryHive>(ParseStateNumber(fields[3]));
+    target->registry.view = static_cast<REGSAM>(ParseStateNumber(fields[4]));
+    target->displayName = HexDecode(fields[5]);
+    target->path = HexDecode(fields[6]);
+    target->reason = HexDecode(fields[7]);
+    target->registry.subkey = HexDecode(fields[8]);
+    if (static_cast<unsigned long>(target->type) > static_cast<unsigned long>(TargetType::Shortcut) ||
+        static_cast<unsigned long>(target->registry.hive) > static_cast<unsigned long>(RegistryHive::Users)) return false;
+    if (!target->verified || target->protectedItem || IsProtectedPath(target->path) ||
+        IsProtectedRegistryPath(target->registry.subkey)) return false;
+    return !target->displayName.empty() || !target->path.empty() || !target->registry.subkey.empty();
+}
+
+bool ResumeRunnerVersionMatches(const std::wstring& path) {
+    DWORD ignored = 0;
+    const DWORD size = GetFileVersionInfoSizeW(path.c_str(), &ignored);
+    if (!size) return false;
+    std::vector<BYTE> data(size);
+    if (!GetFileVersionInfoW(path.c_str(), 0, size, data.data())) return false;
+    VS_FIXEDFILEINFO* info = nullptr;
+    UINT infoSize = 0;
+    if (!VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&info), &infoSize) ||
+        !info || infoSize < sizeof(VS_FIXEDFILEINFO)) return false;
+    return HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 5 &&
+           HIWORD(info->dwFileVersionLS) == 3 && LOWORD(info->dwFileVersionLS) == 0;
+}
+
+std::wstring ResumeRunnerArchitecture(DWORD binaryType) {
+    return binaryType == SCS_64BIT_BINARY ? L"x64" :
+           binaryType == SCS_32BIT_BINARY ? L"x86" : L"unknown";
+}
+
+std::wstring FingerprintProducts(const CleanupPlan& plan) {
+    std::vector<std::wstring> identities;
+    for (const auto& product : plan.products)
+        if (product.selected) identities.push_back(ToLower(product.displayName + L"|" + product.version));
+    std::sort(identities.begin(), identities.end());
+    std::wstring combined;
+    for (const auto& identity : identities) combined += identity + L"\n";
+    return Sha256Hex(combined);
+}
+
+std::wstring FingerprintProfiles(const CleanupPlan& plan) {
+    std::vector<std::wstring> identities;
+    for (const auto& profile : plan.profiles)
+        if (profile.selected) identities.push_back(ToLower(profile.sid));
+    std::sort(identities.begin(), identities.end());
+    std::wstring combined;
+    for (const auto& identity : identities) combined += identity + L"\n";
+    return Sha256Hex(combined);
+}
+
+bool UpdateResumeStateValue(const std::wstring& statePath, const std::wstring& key,
+                            const std::wstring& value, std::wstring* error) {
+    std::wstring text = ReadTextBestEffort(statePath, 1024 * 1024);
+    if (text.empty()) { if (error) *error = L"Resume state is empty or unreadable."; return false; }
+    const std::wstring prefix = key + L"=";
+    std::wistringstream input(text);
+    std::wostringstream output;
+    std::wstring line;
+    bool replaced = false;
+    while (std::getline(input, line)) {
+        if (!line.empty() && line.back() == L'\r') line.pop_back();
+        if (line.rfind(prefix, 0) == 0) { output << prefix << value << L"\r\n"; replaced = true; }
+        else output << line << L"\r\n";
+    }
+    if (!replaced) output << prefix << value << L"\r\n";
+    return WriteUtf8File(statePath, Utf8(output.str()), error);
+}
+
 }  // namespace
+
+std::wstring BuildResumeCommand(const std::wstring& runnerPath, const std::wstring& token) {
+    if (runnerPath.empty() || !IsGuid(token)) return {};
+    return L"\"" + runnerPath + L"\" --resume \"" + token + L"\"";
+}
+
+std::wstring ComputeFileSha256(const std::wstring& path, std::wstring* error) {
+    ScopedHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+                                  nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    if (!file) { if (error) *error = GetLastErrorMessage(GetLastError()); return {}; }
+    HCRYPTPROV provider = 0;
+    HCRYPTHASH hash = 0;
+    if (!CryptAcquireContextW(&provider, nullptr, nullptr, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) ||
+        !CryptCreateHash(provider, CALG_SHA_256, 0, 0, &hash)) {
+        if (error) *error = GetLastErrorMessage(GetLastError());
+        if (provider) CryptReleaseContext(provider, 0);
+        return {};
+    }
+    std::array<BYTE, 64 * 1024> buffer{};
+    DWORD read = 0;
+    bool ok = true;
+    for (;;) {
+        if (!ReadFile(file.get(), buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr)) {
+            ok = false;
+            break;
+        }
+        if (!read) break;
+        if (!CryptHashData(hash, buffer.data(), read, 0)) { ok = false; break; }
+    }
+    std::array<BYTE, 32> digest{};
+    DWORD digestSize = static_cast<DWORD>(digest.size());
+    if (ok) ok = CryptGetHashParam(hash, HP_HASHVAL, digest.data(), &digestSize, 0) != FALSE;
+    CryptDestroyHash(hash);
+    CryptReleaseContext(provider, 0);
+    if (!ok) { if (error) *error = GetLastErrorMessage(GetLastError()); return {}; }
+    std::wostringstream output;
+    for (DWORD index = 0; index < digestSize; ++index)
+        output << std::hex << std::setw(2) << std::setfill(L'0') << static_cast<unsigned>(digest[index]);
+    return output.str();
+}
+
+bool IsUsableResumeRunner(const std::wstring& runnerPath, std::wstring* error) {
+    const std::wstring name = ToLower(FileName(runnerPath));
+    DWORD binaryType = 0;
+    WIN32_FILE_ATTRIBUTE_DATA attributes{};
+    if (runnerPath.empty() || !FileExists(runnerPath) || name != L"cryptoprocleanupresume.exe" ||
+        !GetBinaryTypeW(runnerPath.c_str(), &binaryType) ||
+        (binaryType != SCS_32BIT_BINARY && binaryType != SCS_64BIT_BINARY)) {
+        if (error) *error = L"The resume runner is missing, has an unexpected name, or is not a native executable.";
+        return false;
+    }
+    if (!GetFileAttributesExW(runnerPath.c_str(), GetFileExInfoStandard, &attributes)) {
+        if (error) *error = GetLastErrorMessage(GetLastError());
+        return false;
+    }
+    ULARGE_INTEGER fileSize{};
+    fileSize.HighPart = attributes.nFileSizeHigh;
+    fileSize.LowPart = attributes.nFileSizeLow;
+    if (fileSize.QuadPart < 64 * 1024 || fileSize.QuadPart > 32ull * 1024 * 1024 ||
+        !ResumeRunnerVersionMatches(runnerPath)) {
+        if (error) *error = L"The resume runner has an unexpected size or version.";
+        return false;
+    }
+    if (ComputeFileSha256(runnerPath, error).empty()) return false;
+    return true;
+}
 
 bool PrepareResume(const CleanupPlan& plan, const std::wstring& reportFolder,
                    std::wstring* token, std::wstring* error) {
+    const std::wstring runner = JoinPath(ParentPath(CurrentExecutablePath()), L"CryptoProCleanupResume.exe");
+    return PrepareResumeWithRunner(plan, reportFolder, runner, DetectLanguage(),
+                                   token, error, true, {});
+}
+
+bool PrepareResumeWithRunner(const CleanupPlan& plan, const std::wstring& reportFolder,
+                             const std::wstring& runnerPath, Language language,
+                             std::wstring* token, std::wstring* error,
+                              bool registerRunOnce,
+                              const std::wstring& sessionsRootOverride) {
+    ResumeAuthorization authorization;
+    return PrepareResumeAuthorized(plan, reportFolder, runnerPath, language, authorization,
+                                   token, error, registerRunOnce, sessionsRootOverride);
+}
+
+bool PrepareResumeAuthorized(const CleanupPlan& plan, const std::wstring& reportFolder,
+                             const std::wstring& runnerPath, Language language,
+                             const ResumeAuthorization& authorization,
+                             std::wstring* token, std::wstring* error,
+                             bool registerRunOnce,
+                             const std::wstring& sessionsRootOverride) {
+    if (!authorization.AllowsResidualPass()) {
+        if (error) *error = L"The residual cleanup was not explicitly authorized.";
+        return false;
+    }
+    if (!IsUsableResumeRunner(runnerPath, error)) return false;
+    const bool productionState = sessionsRootOverride.empty();
+    if (productionState && ToLower(CanonicalPath(ParentPath(runnerPath))) !=
+                           ToLower(CanonicalPath(ParentPath(CurrentExecutablePath())))) {
+        if (error) *error = L"The resume runner must be located next to the Modern executable.";
+        return false;
+    }
     GUID guid{};
     if (FAILED(CoCreateGuid(&guid))) { if (error) *error = L"Could not generate a resume token."; return false; }
     std::array<wchar_t, 64> guidText{};
@@ -2043,50 +2579,183 @@ bool PrepareResume(const CleanupPlan& plan, const std::wstring& reportFolder,
         return false;
     }
     const std::wstring generated = guidText.data();
-    const std::wstring root = ResumeRoot();
-    const std::wstring session = ResumeSessionPath(generated);
-    if (!EnsureDirectory(root, error) || !EnsureDirectory(session, error)) return false;
-    if (!ApplyPrivateAcl(root, true, error) || !ApplyPrivateAcl(session, true, error)) return false;
+    const std::wstring root = ResumeRoot(sessionsRootOverride);
+    const std::wstring session = ResumeSessionPath(generated, sessionsRootOverride);
+    const std::wstring runnerName = FileName(runnerPath);
+    const std::wstring runner = JoinPath(session, runnerName);
+    const std::wstring stateFile = JoinPath(session, L"state.ini");
+    const std::wstring runOnceName = L"CryptoProCleanup-" + generated;
+    bool runOnceWritten = false;
+    auto rollback = [&]() {
+        if (runOnceWritten) {
+            RegKey runOnce;
+            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", 0,
+                              KEY_SET_VALUE | KEY_WOW64_64KEY, runOnce.put()) == ERROR_SUCCESS)
+                RegDeleteValueW(runOnce.get(), runOnceName.c_str());
+        }
+        DeleteFileW(stateFile.c_str());
+        DeleteFileW(runner.c_str());
+        RemoveDirectoryW(session.c_str());
+    };
 
-    const std::wstring runner = JoinPath(session, L"CryptoProCleanup.exe");
-    if (!CopyFileW(CurrentExecutablePath().c_str(), runner.c_str(), FALSE)) {
-        if (error) *error = GetLastErrorMessage(GetLastError());
+    if (!EnsureDirectory(root, error) || !EnsureDirectory(session, error)) { rollback(); return false; }
+    if (productionState && (!ApplyPrivateAcl(root, true, error) || !ApplyPrivateAcl(session, true, error))) {
+        rollback();
         return false;
     }
-    ApplyPrivateAcl(runner, false, nullptr);
+    if (!CopyFileW(runnerPath.c_str(), runner.c_str(), FALSE)) {
+        if (error) *error = GetLastErrorMessage(GetLastError());
+        rollback();
+        return false;
+    }
+    if ((productionState && !ApplyPrivateAcl(runner, false, error)) || !IsUsableResumeRunner(runner, error)) {
+        rollback();
+        return false;
+    }
+    const std::wstring sourceHash = ComputeFileSha256(runnerPath, error);
+    const std::wstring copiedHash = ComputeFileSha256(runner, error);
+    if (sourceHash.empty() || copiedHash.empty() || sourceHash != copiedHash) {
+        if (error && error->empty()) *error = L"The copied resume runner hash does not match its source.";
+        rollback();
+        return false;
+    }
+    DWORD binaryType = 0;
+    WIN32_FILE_ATTRIBUTE_DATA runnerAttributes{};
+    if (!GetBinaryTypeW(runner.c_str(), &binaryType) ||
+        !GetFileAttributesExW(runner.c_str(), GetFileExInfoStandard, &runnerAttributes)) {
+        if (error) *error = L"The copied resume runner metadata could not be read.";
+        rollback();
+        return false;
+    }
+    ULARGE_INTEGER runnerSize{};
+    runnerSize.HighPart = runnerAttributes.nFileSizeHigh;
+    runnerSize.LowPart = runnerAttributes.nFileSizeLow;
     std::wostringstream state;
-    state << L"version=1\r\n" << L"token=" << generated << L"\r\n"
-          << L"report=" << HexEncode(reportFolder) << L"\r\n"
-          << L"all=" << (plan.allDetectedProductsSelected ? 1 : 0) << L"\r\n";
+    state << L"version=3\r\n" << L"token=" << generated << L"\r\n"
+           << L"report=" << HexEncode(reportFolder) << L"\r\n"
+           << L"language=" << (language == Language::Russian ? L"ru" : L"en") << L"\r\n"
+           << L"mode=" << (authorization.mode == ResumeMode::ForcedResidual ? L"forced" : L"deferred") << L"\r\n"
+           << L"forceAuthorized=" << (authorization.forceAuthorized ? 1 : 0) << L"\r\n"
+           << L"residualCleanupDeferred=" << (authorization.residualCleanupDeferred ? 1 : 0) << L"\r\n"
+           << L"uninstallerFailurePresent=" << (authorization.uninstallerFailurePresent ? 1 : 0) << L"\r\n"
+           << L"attempts=0\r\nstatus=pending\r\n"
+           << L"runner=" << HexEncode(runnerName) << L"\r\n"
+           << L"runnerVersion=" << HexEncode(kVersion) << L"\r\n"
+           << L"runnerArchitecture=" << ResumeRunnerArchitecture(binaryType) << L"\r\n"
+           << L"runnerSize=" << runnerSize.QuadPart << L"\r\n"
+           << L"runnerSha256=" << copiedHash << L"\r\n"
+           << L"productsFingerprint=" << FingerprintProducts(plan) << L"\r\n"
+           << L"profilesFingerprint=" << FingerprintProfiles(plan) << L"\r\n"
+           << L"all=" << (plan.allDetectedProductsSelected ? 1 : 0) << L"\r\n";
     for (const auto& product : plan.products) {
+        state << L"product2=" << SerializeResumeProduct(product) << L"\r\n";
         if (product.selected) state << L"product=" << Sha256Hex(ToLower(product.displayName + L"|" + product.version)) << L"\r\n";
     }
     for (const auto& profile : plan.profiles) {
         if (profile.selected) state << L"profile=" << Sha256Hex(profile.sid) << L"\r\n";
     }
-    const std::wstring stateFile = JoinPath(session, L"state.ini");
-    if (!WriteUtf8File(stateFile, Utf8(state.str()), error) || !ApplyPrivateAcl(stateFile, false, error)) return false;
+    for (const auto& target : plan.targets)
+        state << L"target2=" << SerializeResumeTarget(target) << L"\r\n";
+    for (const auto& item : plan.protectedItems)
+        state << L"protected2=" << HexEncode(item) << L"\r\n";
+    if (!WriteUtf8File(stateFile, Utf8(state.str()), error) ||
+        (productionState && !ApplyPrivateAcl(stateFile, false, error))) {
+        rollback();
+        return false;
+    }
+
+    if (!registerRunOnce) {
+        if (token) *token = generated;
+        return true;
+    }
 
     RegKey runOnce;
     const LONG open = RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", 0, nullptr, 0,
                                       KEY_SET_VALUE | KEY_WOW64_64KEY, nullptr, runOnce.put(), nullptr);
-    if (open != ERROR_SUCCESS) { if (error) *error = GetLastErrorMessage(open); return false; }
-    const std::wstring name = L"CryptoProCleanup-" + generated;
-    const std::wstring command = L"\"" + runner + L"\" --resume \"" + generated + L"\"";
-    const LONG written = RegSetValueExW(runOnce.get(), name.c_str(), 0, REG_SZ,
+    if (open != ERROR_SUCCESS) { if (error) *error = GetLastErrorMessage(open); rollback(); return false; }
+    const std::wstring command = BuildResumeCommand(runner, generated);
+    if (command.empty()) { if (error) *error = L"The RunOnce command could not be built."; rollback(); return false; }
+    const LONG written = RegSetValueExW(runOnce.get(), runOnceName.c_str(), 0, REG_SZ,
                                         reinterpret_cast<const BYTE*>(command.c_str()), static_cast<DWORD>((command.size() + 1) * sizeof(wchar_t)));
-    if (written != ERROR_SUCCESS) { if (error) *error = GetLastErrorMessage(written); return false; }
+    if (written != ERROR_SUCCESS) { if (error) *error = GetLastErrorMessage(written); rollback(); return false; }
+    runOnceWritten = true;
     if (token) *token = generated;
     return true;
 }
 
 bool LoadResumePlan(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
                     std::wstring* reportFolder, std::wstring* error) {
+    return LoadResumePlan(token, scan, plan, reportFolder, nullptr, error, {});
+}
+
+bool LoadResumePlan(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
+                    std::wstring* reportFolder, Language* language, std::wstring* error,
+                    const std::wstring& sessionsRootOverride) {
+    return LoadResumePlanAuthorized(token, scan, plan, reportFolder, language, nullptr,
+                                    error, sessionsRootOverride);
+}
+
+bool LoadResumePlanAuthorized(const std::wstring& token, ScanResult* scan, CleanupPlan* plan,
+                              std::wstring* reportFolder, Language* language,
+                              ResumeAuthorization* authorization, std::wstring* error,
+                              const std::wstring& sessionsRootOverride) {
     if (!scan || !plan || !IsGuid(token)) { if (error) *error = L"Invalid resume token."; return false; }
     std::multimap<std::wstring, std::wstring> values;
-    if (!ReadStateLines(JoinPath(ResumeSessionPath(token), L"state.ini"), &values, error)) return false;
+    const std::wstring session = ResumeSessionPath(token, sessionsRootOverride);
+    if (!ReadStateLines(JoinPath(session, L"state.ini"), &values, error)) return false;
     const auto storedToken = values.find(L"token");
     if (storedToken == values.end() || ToLower(storedToken->second) != ToLower(token)) { if (error) *error = L"Resume token mismatch."; return false; }
+    const auto version = values.find(L"version");
+    if (version == values.end() || version->second != L"3") {
+        if (error) *error = L"Unsupported or unauthenticated resume-state version.";
+        return false;
+    }
+    ResumeAuthorization storedAuthorization;
+    const auto mode = values.find(L"mode");
+    storedAuthorization.mode = mode != values.end() && mode->second == L"forced" ?
+                               ResumeMode::ForcedResidual : ResumeMode::DeferredResidual;
+    const auto forceAuthorized = values.find(L"forceAuthorized");
+    const auto residualDeferred = values.find(L"residualCleanupDeferred");
+    const auto uninstallerFailure = values.find(L"uninstallerFailurePresent");
+    const auto attempts = values.find(L"attempts");
+    storedAuthorization.forceAuthorized = forceAuthorized != values.end() && forceAuthorized->second == L"1";
+    storedAuthorization.residualCleanupDeferred = residualDeferred != values.end() && residualDeferred->second == L"1";
+    storedAuthorization.uninstallerFailurePresent = uninstallerFailure != values.end() && uninstallerFailure->second == L"1";
+    storedAuthorization.attempts = attempts == values.end() ? 0 : ParseStateNumber(attempts->second, 99);
+    if (!storedAuthorization.AllowsResidualPass() || storedAuthorization.attempts >= 3 ||
+        (storedAuthorization.mode == ResumeMode::ForcedResidual && !storedAuthorization.forceAuthorized)) {
+        if (error) *error = storedAuthorization.attempts >= 3 ?
+            L"The resume retry limit has been reached." : L"The protected state does not authorize residual cleanup.";
+        return false;
+    }
+    if (authorization) *authorization = storedAuthorization;
+
+    const auto runnerValue = values.find(L"runner");
+    const auto runnerVersion = values.find(L"runnerVersion");
+    const auto runnerArchitecture = values.find(L"runnerArchitecture");
+    const auto runnerSizeValue = values.find(L"runnerSize");
+    const auto runnerHash = values.find(L"runnerSha256");
+    if (runnerValue == values.end() || runnerVersion == values.end() ||
+        runnerArchitecture == values.end() || runnerSizeValue == values.end() || runnerHash == values.end()) {
+        if (error) *error = L"The resume runner identity is incomplete.";
+        return false;
+    }
+    const std::wstring runnerName = FileName(HexDecode(runnerValue->second));
+    const std::wstring runner = JoinPath(session, runnerName);
+    DWORD binaryType = 0;
+    WIN32_FILE_ATTRIBUTE_DATA runnerAttributes{};
+    ULARGE_INTEGER runnerSize{};
+    if (!IsUsableResumeRunner(runner, error) || !GetBinaryTypeW(runner.c_str(), &binaryType) ||
+        !GetFileAttributesExW(runner.c_str(), GetFileExInfoStandard, &runnerAttributes)) return false;
+    runnerSize.HighPart = runnerAttributes.nFileSizeHigh;
+    runnerSize.LowPart = runnerAttributes.nFileSizeLow;
+    if (HexDecode(runnerVersion->second) != kVersion ||
+        runnerArchitecture->second != ResumeRunnerArchitecture(binaryType) ||
+        ParseStateNumber(runnerSizeValue->second, 0) != runnerSize.QuadPart ||
+        ToLower(runnerHash->second) != ToLower(ComputeFileSha256(runner, error))) {
+        if (error && error->empty()) *error = L"The resume runner identity does not match the protected state.";
+        return false;
+    }
     const auto report = values.find(L"report");
     if (report != values.end() && reportFolder) *reportFolder = HexDecode(report->second);
     std::set<std::wstring> productHashes, profileHashes;
@@ -2094,44 +2763,182 @@ bool LoadResumePlan(const std::wstring& token, ScanResult* scan, CleanupPlan* pl
     for (auto item = productRange.first; item != productRange.second; ++item) productHashes.insert(item->second);
     const auto profileRange = values.equal_range(L"profile");
     for (auto item = profileRange.first; item != profileRange.second; ++item) profileHashes.insert(item->second);
-    *scan = ScanSystem(DetectLanguage());
-    for (auto& product : scan->products) product.selected = productHashes.count(Sha256Hex(ToLower(product.displayName + L"|" + product.version))) != 0;
-    for (auto& profile : scan->profiles) profile.selected = profileHashes.count(Sha256Hex(profile.sid)) != 0;
-    *plan = BuildCleanupPlan(*scan);
+    const auto storedLanguage = values.find(L"language");
+    const Language resumeLanguage = storedLanguage != values.end() && storedLanguage->second == L"ru" ?
+                                    Language::Russian : Language::English;
+    if (language) *language = resumeLanguage;
+    *plan = {};
     const auto all = values.find(L"all");
     const bool originalAll = all != values.end() && all->second == L"1";
-    if (originalAll) {
-        plan->allDetectedProductsSelected = true;
-        std::unordered_set<std::wstring> identities;
-        for (const auto& target : plan->targets) identities.insert(TargetIdentity(target));
-        AddDefaultResidualTargets(*plan, identities);
+    plan->allDetectedProductsSelected = originalAll;
+    {
+        const auto product2 = values.equal_range(L"product2");
+        for (auto item = product2.first; item != product2.second; ++item) {
+            InstalledProduct product;
+            if (DeserializeResumeProduct(item->second, &product)) plan->products.push_back(std::move(product));
+        }
+        const auto target2 = values.equal_range(L"target2");
+        for (auto item = target2.first; item != target2.second; ++item) {
+            CleanupTarget target;
+            if (DeserializeResumeTarget(item->second, &target)) plan->targets.push_back(std::move(target));
+        }
+        const auto protected2 = values.equal_range(L"protected2");
+        for (auto item = protected2.first; item != protected2.second; ++item) {
+            const std::wstring value = HexDecode(item->second);
+            if (!value.empty()) plan->protectedItems.push_back(value);
+        }
+        // Tests use an isolated sessions root so loading a protected state never
+        // needs to inspect the developer machine's HKLM. Production resumes do
+        // perform a fresh, read-only scan for an accurate final report.
+        if (sessionsRootOverride.empty()) {
+            *scan = ScanSystem(resumeLanguage);
+            for (auto& product : scan->products)
+                product.selected = productHashes.count(Sha256Hex(ToLower(product.displayName + L"|" + product.version))) != 0;
+            for (auto& profile : scan->profiles)
+                profile.selected = profileHashes.count(Sha256Hex(profile.sid)) != 0;
+            plan->profiles = scan->profiles;
+        } else {
+            scan->products = plan->products;
+        }
+        const auto productsFingerprint = values.find(L"productsFingerprint");
+        const auto profilesFingerprint = values.find(L"profilesFingerprint");
+        if (productsFingerprint == values.end() || profilesFingerprint == values.end() ||
+            productsFingerprint->second != FingerprintProducts(*plan) ||
+            profilesFingerprint->second != FingerprintProfiles(*plan)) {
+            if (error) *error = L"The selected product or profile fingerprint does not match the protected state.";
+            return false;
+        }
+        if (plan->targets.empty() && error) *error = L"The protected resume plan contains no verified targets.";
+        return !plan->targets.empty();
     }
-    return true;
 }
 
 bool CompleteResume(const std::wstring& token, std::wstring* error) {
-    if (!IsGuid(token)) { if (error) *error = L"Invalid resume token."; return false; }
-    RegKey runOnce;
-    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", 0,
-                      KEY_SET_VALUE | KEY_WOW64_64KEY, runOnce.put()) == ERROR_SUCCESS) {
-        RegDeleteValueW(runOnce.get(), (L"CryptoProCleanup-" + token).c_str());
-    }
-    const std::wstring session = ResumeSessionPath(token);
-    const std::wstring state = JoinPath(session, L"state.ini");
-    if (FileExists(state) && !DeleteFileW(state.c_str())) ScheduleDelete(state, nullptr);
-    const std::wstring executable = CurrentExecutablePath();
-    if (PathStartsWith(executable, session)) ScheduleDelete(executable, nullptr);
-    if (!RemoveDirectoryW(session.c_str())) ScheduleDelete(session, nullptr);
-    return true;
+    return CompleteResume(token, error, true, {});
 }
 
-bool RequestSystemRestart(std::wstring* error) {
-    if (!EnablePrivilege(SE_SHUTDOWN_NAME)) { if (error) *error = GetLastErrorMessage(GetLastError()); return false; }
-    if (!ExitWindowsEx(EWX_REBOOT | EWX_RESTARTAPPS, SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_MINOR_INSTALLATION | SHTDN_REASON_FLAG_PLANNED)) {
-        if (error) *error = GetLastErrorMessage(GetLastError());
+bool CompleteResume(const std::wstring& token, std::wstring* error,
+                    bool removeRunOnce, const std::wstring& sessionsRootOverride) {
+    if (!IsGuid(token)) { if (error) *error = L"Invalid resume token."; return false; }
+    bool success = true;
+    auto fail = [&](const std::wstring& message) {
+        success = false;
+        if (error && error->empty()) *error = message;
+    };
+    if (removeRunOnce) {
+        RegKey runOnce;
+        const LONG opened = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", 0,
+                                          KEY_SET_VALUE | KEY_WOW64_64KEY, runOnce.put());
+        if (opened == ERROR_SUCCESS) {
+            const LONG deleted = RegDeleteValueW(runOnce.get(), (L"CryptoProCleanup-" + token).c_str());
+            if (deleted != ERROR_SUCCESS && deleted != ERROR_FILE_NOT_FOUND) fail(GetLastErrorMessage(deleted));
+        } else if (opened != ERROR_FILE_NOT_FOUND) fail(GetLastErrorMessage(opened));
+    }
+    const std::wstring session = ResumeSessionPath(token, sessionsRootOverride);
+    if (!PathStartsWith(session, ResumeRoot(sessionsRootOverride))) {
+        if (error) *error = L"The resume session path is outside the protected root.";
         return false;
     }
-    return true;
+    const std::wstring state = JoinPath(session, L"state.ini");
+    std::wstring runnerName;
+    std::multimap<std::wstring, std::wstring> values;
+    if (ReadStateLines(state, &values, nullptr)) {
+        const auto runner = values.find(L"runner");
+        if (runner != values.end()) runnerName = FileName(HexDecode(runner->second));
+    } else fail(L"The resume state could not be read during final cleanup.");
+    const std::wstring executable = CurrentExecutablePath();
+    if (!runnerName.empty()) {
+        const std::wstring runner = JoinPath(session, runnerName);
+        if (ToLower(CanonicalPath(runner)) == ToLower(CanonicalPath(executable))) {
+            if (!ScheduleDelete(runner, nullptr)) fail(GetLastErrorMessage(GetLastError()));
+        } else if (FileExists(runner) && !DeleteFileW(runner.c_str()) && !ScheduleDelete(runner, nullptr)) {
+            fail(GetLastErrorMessage(GetLastError()));
+        }
+    }
+    if (FileExists(state) && !DeleteFileW(state.c_str()) && !ScheduleDelete(state, nullptr))
+        fail(GetLastErrorMessage(GetLastError()));
+    if (!RemoveDirectoryW(session.c_str())) {
+        const DWORD removeError = GetLastError();
+        if (removeError != ERROR_FILE_NOT_FOUND && !ScheduleDelete(session, nullptr)) fail(GetLastErrorMessage(removeError));
+    }
+    return success;
+}
+
+int RunResumeCommand(const std::wstring& token, bool showResult, const ProgressCallback& progress) {
+    ScanResult scan;
+    CleanupPlan plan;
+    std::wstring reportFolder;
+    std::wstring error;
+    Language language = DetectLanguage();
+    ResumeAuthorization authorization;
+    if (!LoadResumePlanAuthorized(token, &scan, &plan, &reportFolder, &language, &authorization, &error, {})) {
+        if (showResult) MessageBoxW(nullptr, error.c_str(),
+            Tr(language, L"Продолжение невозможно", L"Cannot resume").c_str(), MB_OK | MB_ICONERROR);
+        return 2;
+    }
+    const std::wstring statePath = JoinPath(ResumeSessionPath(token), L"state.ini");
+    const unsigned long currentAttempt = authorization.attempts + 1;
+    if (!UpdateResumeStateValue(statePath, L"attempts", std::to_wstring(currentAttempt), &error) ||
+        !UpdateResumeStateValue(statePath, L"status", L"running", &error)) {
+        if (showResult) MessageBoxW(nullptr, error.c_str(), L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
+        return 3;
+    }
+    ExecutionResult execution;
+    ScanResult verification;
+    try {
+        // Loading version 3 state has already verified that this residual pass
+        // was authorized either by a clean reboot deferral or explicit FORCE.
+        execution = ExecuteCleanup(plan, true, progress);
+        verification = VerifyAfterCleanup(language, progress);
+    } catch (...) {
+        UpdateResumeStateValue(statePath, L"status", L"failed", nullptr);
+        UpdateResumeStateValue(statePath, L"lastError", HexEncode(L"Unhandled exception during resume."), nullptr);
+        if (showResult) MessageBoxW(nullptr,
+            Tr(language, L"Продолжение завершилось аварийно. Состояние сохранено для ручного повтора.",
+                         L"Resume failed unexpectedly. State was retained for a manual retry.").c_str(),
+            L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
+        return 3;
+    }
+    if (reportFolder.empty()) {
+        error = L"The resume report folder is missing.";
+        if (showResult) MessageBoxW(nullptr, error.c_str(), L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
+        UpdateResumeStateValue(statePath, L"status", L"failed", nullptr);
+        UpdateResumeStateValue(statePath, L"lastError", HexEncode(error), nullptr);
+        return 3;
+    }
+    const std::wstring reportPath = JoinPath(reportFolder, L"report.json");
+    const std::wstring summaryPath = JoinPath(reportFolder, L"summary.txt");
+    const std::wstring logPath = JoinPath(reportFolder, L"cleanup.log");
+    bool reportsWritten = WriteJsonReport(reportPath, scan, &plan, &execution, &verification, &error) &&
+                          WriteTextSummary(language, summaryPath, scan, &plan, &execution, &verification, &error);
+    for (const auto& operation : execution.operations) {
+        const std::wstring line = L"[resume] " + operation.action + L": " + operation.target + L" — " + operation.message;
+        reportsWritten = AppendLog(logPath, RedactSensitiveText(line, scan)) && reportsWritten;
+    }
+    bool partial = execution.anyFailure || execution.rebootRequired || !verification.products.empty() ||
+                   !verification.warnings.empty() || !reportsWritten;
+    if (partial) {
+        UpdateResumeStateValue(statePath, L"status", L"failed", nullptr);
+        UpdateResumeStateValue(statePath, L"lastError", HexEncode(error.empty() ? L"Residual cleanup remains partial." : error), nullptr);
+    } else {
+        UpdateResumeStateValue(statePath, L"status", L"completed", nullptr);
+        std::wstring cleanupError;
+        if (!CompleteResume(token, &cleanupError)) {
+            partial = true;
+            error = cleanupError;
+        }
+    }
+    if (showResult) {
+        const std::wstring message = partial ?
+            Tr(language, L"Продолжение завершено частично. Состояние сохранено для ручного повтора; проверьте обезличенные отчёты.",
+                         L"Resume completed partially. State was retained for a manual retry; review the redacted reports.") :
+            Tr(language, L"Остаточная очистка после перезагрузки завершена.",
+                         L"Post-restart residual cleanup completed.");
+        MessageBoxW(nullptr, (message + L"\r\n\r\n" + reportFolder).c_str(),
+                    Tr(language, L"Результат продолжения", L"Resume result").c_str(),
+                    MB_OK | (partial ? MB_ICONWARNING : MB_ICONINFORMATION));
+    }
+    return partial ? 1 : 0;
 }
 
 CommandLineOptions ParseCommandLine(int argc, wchar_t** argv) {
@@ -2167,7 +2974,6 @@ int RunScanCommand(const CommandLineOptions& options) {
         MessageBoxW(nullptr, error.c_str(), L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
         return 2;
     }
-    MessageBoxW(nullptr, report.c_str(), Tr(options.language, L"Отчёт сканирования сохранён", L"Scan report saved").c_str(), MB_OK | MB_ICONINFORMATION);
     return 0;
 }
 
@@ -2192,10 +2998,6 @@ int RunOfflineScanCommand(const CommandLineOptions& options) {
         MessageBoxW(nullptr, error.c_str(), L"CryptoPro Cleanup Utility", MB_OK | MB_ICONERROR);
         return 2;
     }
-    MessageBoxW(nullptr, report.c_str(),
-                Tr(options.language, L"Диагностика офлайн-сканирования сохранена",
-                                     L"Offline scan diagnostics saved").c_str(),
-                MB_OK | (offline.valid ? MB_ICONINFORMATION : MB_ICONWARNING));
     return offline.valid ? 0 : 1;
 }
 

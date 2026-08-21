@@ -4,6 +4,11 @@ build/
 dist/
 Debug/
 Release/
+packages/
+artifacts/
+.referer/
+Generated Files/
+obj/
 *.obj
 *.pdb
 *.idb
