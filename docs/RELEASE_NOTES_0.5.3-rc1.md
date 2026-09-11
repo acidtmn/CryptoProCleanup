@@ -4,7 +4,6 @@
 
 Portable-утилита помогает сохранить полные номера лицензий и открытые сертификаты, корректно запустить зарегистрированные деинсталляторы CryptoPro, убрать только заранее подтверждённые остатки и извлечь данные из Windows на подключённом диске.
 
-![Обзор системы](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/overview.png)
 
 ## Что скачать
 
@@ -51,31 +50,6 @@ Portable-утилита помогает сохранить полные ном�
 - открытые `.cer`/`.p7b` не содержат закрытый ключ и сами по себе не позволяют подписывать документы.
 
 Локально пройдены Release-сборки и native unit tests для Win32/x64, проверки ресурсов тем и отступов, Modern UI smoke для шести страниц и RU/EN, а также Legacy UI smoke на малых разрешениях. Полная матрица и разрушительные сценарии остаются обязательными перед стабильным релизом: [подробный журнал проверки](https://github.com/acidtmn/CryptoProCleanup/blob/v0.5.3-rc1/docs/TEST_MATRIX.md).
-
-<details>
-<summary><strong>Скриншоты интерфейса</strong></summary>
-
-### Открытые сертификаты
-
-![Открытые сертификаты](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/certificates.png)
-
-### Отключённая Windows
-
-![Офлайн-Windows](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/offline-windows.png)
-
-### Журнал и отчёты
-
-![Журнал и отчёты](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/reports.png)
-
-### Настройки
-
-![Настройки](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/settings.png)
-
-### О программе
-
-![О программе](https://raw.githubusercontent.com/acidtmn/CryptoProCleanup/v0.5.3-rc1/docs/images/0.5.3/about.png)
-
-</details>
 
 ## English
 

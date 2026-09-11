@@ -2422,8 +2422,9 @@ bool ResumeRunnerVersionMatches(const std::wstring& path) {
     UINT infoSize = 0;
     if (!VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&info), &infoSize) ||
         !info || infoSize < sizeof(VS_FIXEDFILEINFO)) return false;
-    return HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 5 &&
-           HIWORD(info->dwFileVersionLS) == 3 && LOWORD(info->dwFileVersionLS) == 0;
+    constexpr WORD expected[] = {CPC_VERSION_NUMERIC};
+    return HIWORD(info->dwFileVersionMS) == expected[0] && LOWORD(info->dwFileVersionMS) == expected[1] &&
+           HIWORD(info->dwFileVersionLS) == expected[2] && LOWORD(info->dwFileVersionLS) == expected[3];
 }
 
 std::wstring ResumeRunnerArchitecture(DWORD binaryType) {

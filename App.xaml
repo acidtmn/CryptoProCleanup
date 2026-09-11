@@ -25,11 +25,11 @@
                     <SolidColorBrush x:Key="TertiaryTextBrush" Color="#78859F"/>
                     <SolidColorBrush x:Key="DisabledTextBrush" Color="#58637A"/>
                     <SolidColorBrush x:Key="InverseTextBrush" Color="#071126"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#A96D87"/>
-                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#BE819B"/>
-                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#8E586F"/>
-                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#3A2532"/>
-                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#7E5065"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#7AA7FF"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#A2C2FF"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#5C8EEB"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#182F55"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#365F9D"/>
                     <SolidColorBrush x:Key="SuccessBrush" Color="#45D19A"/>
                     <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#123A31"/>
                     <SolidColorBrush x:Key="SuccessBorderBrush" Color="#25755C"/>
@@ -41,10 +41,10 @@
                     <SolidColorBrush x:Key="DangerPressedBrush" Color="#DB586C"/>
                     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#421F2B"/>
                     <SolidColorBrush x:Key="DangerBorderBrush" Color="#8B3E50"/>
-                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#9B5874"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#2864D7"/>
                     <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#B46F8C"/>
-                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#80445F"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#3575ED"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#2052B3"/>
                     <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#36415B"/>
                     <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#172036"/>
                     <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#F6F8FF"/>
@@ -62,8 +62,8 @@
                     <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#FFD47A"/>
                     <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#421F2B"/>
                     <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#FF9AAA"/>
-                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#A96D87"/>
-                    <SolidColorBrush x:Key="FocusBrush" Color="#D6A9BC"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#7AA7FF"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#A2C2FF"/>
                     <SolidColorBrush x:Key="OverlayBrush" Color="#B3000000"/>
                     <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#172036"/>
                     <SolidColorBrush x:Key="DialogForegroundBrush" Color="#F6F8FF"/>
@@ -110,11 +110,11 @@
                     <SolidColorBrush x:Key="TertiaryTextBrush" Color="#768298"/>
                     <SolidColorBrush x:Key="DisabledTextBrush" Color="#9AA3B2"/>
                     <SolidColorBrush x:Key="InverseTextBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#8F526D"/>
-                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#79435C"/>
-                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#66384E"/>
-                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#F4E8ED"/>
-                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#C49AAF"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#245FCB"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#194FAF"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#17448D"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E7EFFF"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#98B5E8"/>
                     <SolidColorBrush x:Key="SuccessBrush" Color="#147A55"/>
                     <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#E3F5ED"/>
                     <SolidColorBrush x:Key="SuccessBorderBrush" Color="#77BDA3"/>
@@ -126,10 +126,10 @@
                     <SolidColorBrush x:Key="DangerPressedBrush" Color="#781327"/>
                     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#FDE7EB"/>
                     <SolidColorBrush x:Key="DangerBorderBrush" Color="#DE8796"/>
-                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#8F526D"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#245FCB"/>
                     <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#79435C"/>
-                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#66384E"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#194FAF"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#17448D"/>
                     <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#BBC5D7"/>
                     <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#172033"/>
@@ -147,8 +147,8 @@
                     <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#724B00"/>
                     <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#FBE1E6"/>
                     <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#991D33"/>
-                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#8F526D"/>
-                    <SolidColorBrush x:Key="FocusBrush" Color="#744158"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#245FCB"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#17448D"/>
                     <SolidColorBrush x:Key="OverlayBrush" Color="#66000000"/>
                     <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="DialogForegroundBrush" Color="#172033"/>
@@ -351,8 +351,8 @@
                 <Setter Property="BorderBrush" Value="{ThemeResource DangerBorderBrush}"/>
             </Style>
             <Style x:Key="CompactNavigationButtonStyle" TargetType="Button">
-                <Setter Property="Width" Value="40"/>
-                <Setter Property="Height" Value="40"/>
+                <Setter Property="Width" Value="84"/>
+                <Setter Property="Height" Value="64"/>
                 <Setter Property="Padding" Value="0"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Background" Value="{ThemeResource NavigationBackgroundBrush}"/>

@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $Executable) { $Executable = Join-Path $projectRoot 'build\Win32\Release\CryptoProCleanupLegacy.exe' }
-if (-not $ArtifactsDirectory) { $ArtifactsDirectory = Join-Path $projectRoot 'artifacts\legacy-ui-smoke\0.5.3-rc1' }
+if (-not $ArtifactsDirectory) { $ArtifactsDirectory = Join-Path $projectRoot 'artifacts\legacy-ui-smoke\0.6.0-preview1' }
 if (-not (Test-Path -LiteralPath $Executable)) { throw "Legacy executable was not found: $Executable" }
 
 $settingsPath = 'HKCU:\Software\CodeAlexandrov\CryptoProCleanup\Legacy'
@@ -157,6 +157,7 @@ try {
     [void][CpcLegacySmokeNative]::SetWindowPos($window, [IntPtr]::Zero, 20, 20, 768, 528, 0x0004)
     Assert-WindowSize $window 768 528
     Assert-ActionsInsideWindow $window @(1019, 1012, 1013)
+    Assert-ActionsDoNotOverlap $window @(1004, 1130, 1006, 1019, 1012, 1013)
     Save-WindowScreenshot $window 'overview-800x600-workarea-ru'
     Select-Page $window 1103
     Assert-ActionsInsideWindow $window @(1144, 1028)
@@ -174,6 +175,12 @@ try {
     Select-Page $window 1107
     Assert-ActionsInsideWindow $window @(1182)
     Save-WindowScreenshot $window 'about-800x600-workarea-ru'
+    [void][CpcLegacySmokeNative]::SetWindowPos($window, [IntPtr]::Zero, 20, 20, 640, 480, 0x0004)
+    Select-Page $window 1102
+    Assert-WindowSize $window 640 480
+    Assert-ActionsInsideWindow $window @(1130, 1019, 1012, 1013)
+    Assert-ActionsDoNotOverlap $window @(1004, 1130, 1006, 1019, 1012, 1013)
+    Save-WindowScreenshot $window 'overview-640x480-ru'
     Write-Host "Legacy UI smoke passed at 800x600 and 1024x768: $ArtifactsDirectory"
 } finally {
     if (-not $process.HasExited) {

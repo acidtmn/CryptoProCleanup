@@ -232,7 +232,8 @@ enum class UiOperation {
     ForcedCleanup,
     OfflineCleanup,
     ResumeCleanup,
-    ComputingHash
+    ComputingHash,
+    SavingLiveData
 };
 
 struct UiOperationToken {

@@ -1,5 +1,9 @@
 # КриптоПро Очистка
 
+> **Локальная версия 0.6.0-preview1 — ожидает проверки автором, не опубликована.** В Modern появились понятные действия на главной, отдельное сохранение данных без удаления и закреплённая подсказка следующего шага. [Инструкция проверки](docs/LOCAL_PREVIEW_0.6.0.md) · [Что проверено и ограничения](docs/AUDIT_0.6.0.md).
+
+Ниже — описание опубликованной версии; ссылки на скачивание ведут на публичные релизы.
+
 [![Windows build](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml/badge.svg)](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/acidtmn/CryptoProCleanup?include_prereleases&label=релиз)](https://github.com/acidtmn/CryptoProCleanup/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -12,35 +16,6 @@
 Проект не связан с ООО «КРИПТО-ПРО». Названия CryptoPro и «КриптоПро» используются только для описания совместимости. Утилита не загружает и не запускает `cspclean.exe`.
 
 **[Скачать последнюю сборку](https://github.com/acidtmn/CryptoProCleanup/releases)** · [English documentation](README.en.md)
-
-<p align="center">
-  <img src="docs/images/0.5.3/overview.png" alt="Главная страница КриптоПро Очистка Modern" width="960">
-</p>
-
-<details>
-<summary><strong>Ещё скриншоты: сертификаты, отключённая Windows, отчёты, настройки и информация о программе</strong></summary>
-
-### Открытые сертификаты
-
-![Выбор и экспорт открытых сертификатов](docs/images/0.5.3/certificates.png)
-
-### Отключённая Windows
-
-![Безопасное сканирование подключённого диска](docs/images/0.5.3/offline-windows.png)
-
-### Журнал и отчёты
-
-![Обезличенный журнал и отчёты](docs/images/0.5.3/reports.png)
-
-### Настройки
-
-![Настройки языка, темы и поведения окна](docs/images/0.5.3/settings.png)
-
-### О программе
-
-![Версия, SHA-256, ссылки и сведения о проекте](docs/images/0.5.3/about.png)
-
-</details>
 
 ## Важное предупреждение
 

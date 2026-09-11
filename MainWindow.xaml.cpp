@@ -551,11 +551,11 @@ namespace winrt::CryptoProCleanupModern::implementation
                                                  : NavigationViewPaneDisplayMode::Left);
             Navigation().IsPaneOpen(!compact);
             Navigation().IsPaneToggleButtonVisible(false);
-            Navigation().Margin(compact ? Thickness{48, 0, 0, 0} : Thickness{0, 0, 0, 0});
+            Navigation().Margin(compact ? Thickness{96, 0, 0, 0} : Thickness{0, 0, 0, 0});
             CompactRail().Visibility(compact ? Visibility::Visible : Visibility::Collapsed);
         }
 
-        const double contentWidth = width - (compact ? 48.0 : 248.0);
+        const double contentWidth = width - (compact ? 96.0 : 248.0);
         auto setColumn = [](Grid const& grid, uint32_t index, double value, GridUnitType unit)
         {
             grid.ColumnDefinitions().GetAt(index).Width(GridLength{value, unit});
@@ -575,7 +575,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         Grid::SetRow(ChooseBackupButton(), stackBackupPath ? 1 : 0);
         ChooseBackupButton().HorizontalAlignment(stackBackupPath ? HorizontalAlignment::Left : HorizontalAlignment::Stretch);
 
-        const bool twoColumnStats = contentWidth < 930;
+        const bool twoColumnStats = contentWidth < 700;
         for (uint32_t index = 0; index < 4; ++index)
             setColumn(OverviewStatsGrid(), index, index < (twoColumnStats ? 2u : 4u) ? 1.0 : 0.0,
                       index < (twoColumnStats ? 2u : 4u) ? GridUnitType::Star : GridUnitType::Pixel);
@@ -692,6 +692,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         RescanButton().Visibility(page == L"overview" || page == L"certificates" ? visible : collapsed);
         RefreshCompactNavigationVisuals();
         UpdatePageHeader();
+        NextStepBar().Visibility(page == L"overview" ? visible : collapsed);
         if (page == L"reports") UpdateReportsPage();
     }
 
@@ -700,9 +701,9 @@ namespace winrt::CryptoProCleanupModern::implementation
         if (currentPage_ == L"overview")
         {
             PageEyebrow().Text(T(L"РАБОТАЮЩАЯ СИСТЕМА · БЕЗОПАСНОЕ СКАНИРОВАНИЕ", L"LIVE SYSTEM · SAFE SCAN"));
-            PageTitle().Text(T(L"Обзор системы", L"System overview"));
-            PageSubtitle().Text(T(L"Проверь найденные продукты, резервную копию и план операции.",
-                                  L"Review detected products, the backup folder, and the operation plan."));
+            PageTitle().Text(T(L"Ваш CryptoPro", L"Your CryptoPro"));
+            PageSubtitle().Text(T(L"Сохраните важные данные или подготовьте удаление программ с этого компьютера.",
+                                  L"Save important data or prepare to remove applications from this computer."));
         }
         else if (currentPage_ == L"certificates")
         {
@@ -748,9 +749,9 @@ namespace winrt::CryptoProCleanupModern::implementation
         statusDetail_.clear();
         Title(T(L"КриптоПро Очистка ", L"CryptoPro Cleanup Utility ") + std::wstring(cpc::kVersion));
         BrandTitle().Text(T(L"КриптоПро\nОчистка", L"CryptoPro\nCleanup"));
-        NavOverview().Content(box_value(T(L"Обзор", L"Overview")));
+        NavOverview().Content(box_value(T(L"Главная", L"Home")));
         NavCertificates().Content(box_value(T(L"Открытые сертификаты", L"Public certificates")));
-        NavOffline().Content(box_value(T(L"Офлайн-Windows", L"Offline Windows")));
+        NavOffline().Content(box_value(T(L"Другой диск", L"Another drive")));
         NavReports().Content(box_value(T(L"Журнал и отчёты", L"Log and reports")));
         NavSettings().Content(box_value(T(L"Настройки", L"Settings")));
         NavAbout().Content(box_value(T(L"О программе", L"About")));
@@ -770,22 +771,22 @@ namespace winrt::CryptoProCleanupModern::implementation
         LicensesStatHint().Text(T(L"полные номера найдены", L"full serials found"));
         CertificatesStatHint().Text(T(L"только открытая часть", L"public part only"));
         RiskStatHint().Text(T(L"критичные продукты", L"critical products"));
-        ProductsTitle().Text(T(L"Обнаруженные продукты", L"Detected products"));
-        ProductsSubtitle().Text(T(L"Удаляются только записи подтверждённого издателя", L"Only verified-publisher entries can be removed"));
+        ProductsTitle().Text(T(L"1. Программы для удаления", L"1. Applications to remove"));
+        ProductsSubtitle().Text(T(L"Снимите галочки с программ, которые хотите оставить.", L"Uncheck applications you want to keep."));
         ProductColumn().Text(T(L"ПРОДУКТ", L"PRODUCT"));
         VersionColumn().Text(T(L"ВЕРСИЯ", L"VERSION"));
         ArchitectureColumn().Text(T(L"АРХИТЕКТУРА", L"ARCHITECTURE"));
         RiskColumn().Text(T(L"РИСК", L"RISK"));
         ProfilesTitle().Text(T(L"Профили для очистки", L"Profiles to clean"));
         ProfilesSubtitle().Text(T(L"Настройки выбранных локальных профилей", L"Settings of selected local profiles"));
-        BackupTitle().Text(T(L"Резервная копия", L"Backup"));
+        BackupTitle().Text(T(L"2. Куда сохранить копию", L"2. Backup destination"));
         BackupSubtitle().Text(T(L"Создаётся до любых изменений", L"Created before any changes"));
-        ChooseBackupText().Text(T(L"Изменить", L"Change"));
+        ChooseBackupText().Text(T(L"Выбрать папку", L"Choose folder"));
         BackupInfo().Text(T(L"Будут созданы licenses.txt, папка certificates, summary.txt, report.json и обезличенный cleanup.log.",
                            L"Creates licenses.txt, a certificates folder, summary.txt, report.json, and a redacted cleanup.log."));
         ValidateBackupPathForUi();
         ShowLicensesText().Text(T(L"Показать и копировать лицензии", L"Show and copy licenses"));
-        PlanCaption().Text(T(L"ПЛАН ОПЕРАЦИИ", L"OPERATION PLAN"));
+        PlanCaption().Text(T(L"КАК ПРОХОДИТ УДАЛЕНИЕ", L"HOW REMOVAL WORKS"));
         PlanState().Text(planRevisions_.IsPlanCurrent()
             ? T(L"План проверен", L"Plan reviewed")
             : (planRevisions_.planReady ? T(L"Требуется повторная проверка", L"Review required again")
@@ -901,6 +902,20 @@ namespace winrt::CryptoProCleanupModern::implementation
         AutomationProperties::SetName(CompactReports(), T(L"Журнал и отчёты", L"Log and reports"));
         AutomationProperties::SetName(CompactSettings(), T(L"Настройки", L"Settings"));
         AutomationProperties::SetName(CompactAbout(), T(L"О программе", L"About"));
+        StartTitle().Text(T(L"Что вы хотите сделать?", L"What would you like to do?"));
+        StartHint().Text(T(L"Для переустановки сначала сохраните данные. Для удаления выберите программы ниже.",
+                          L"Save your data before reinstalling. To remove applications, select them below."));
+        SaveDataText().Text(T(L"Сохранить данные", L"Back up data"));
+        SaveDataHint().Text(T(L"Копия включает полные лицензии, выбранные открытые сертификаты и отчёт. Удаление не запускается.",
+                             L"Includes full licenses, selected public certificates, and a report. Does not start removal."));
+        GoCertificatesText().Text(T(L"Выбрать сертификаты", L"Choose certificates"));
+        GoOfflineText().Text(T(L"Данные с другого диска", L"Data from another drive"));
+        CompactOverviewText().Text(T(L"Главная", L"Home"));
+        CompactCertificatesText().Text(T(L"Сертификаты", L"Certificates"));
+        CompactOfflineText().Text(T(L"Другой диск", L"Other drive"));
+        CompactReportsText().Text(T(L"Отчёты", L"Reports"));
+        CompactSettingsText().Text(T(L"Настройки", L"Settings"));
+        CompactAboutText().Text(T(L"О программе", L"About"));
         RenderStatus();
 
         UpdatePageHeader();
@@ -1023,6 +1038,7 @@ namespace winrt::CryptoProCleanupModern::implementation
             brush = L"AccentBrush";
             switch (statusSource_)
             {
+            case cpc::UiOperation::SavingLiveData: footer = T(L"Сохранение лицензий и открытых сертификатов…", L"Saving licenses and public certificates…"); break;
             case cpc::UiOperation::LiveScan: footer = T(L"Безопасное сканирование системы…", L"Safely scanning the system…"); break;
             case cpc::UiOperation::BuildingPlan: footer = T(L"Построение проверяемого плана…", L"Building a verifiable plan…"); break;
             case cpc::UiOperation::ExportingCertificates: footer = T(L"Экспорт открытых сертификатов…", L"Exporting public certificates…"); break;
@@ -1112,6 +1128,49 @@ namespace winrt::CryptoProCleanupModern::implementation
         const size_t selectedProducts = static_cast<size_t>(std::count_if(
             scan_.products.begin(), scan_.products.end(),
             [](cpc::InstalledProduct const& product) { return product.selected; }));
+
+        SaveDataButton().IsEnabled(idle && (!scan_.licenses.empty() || !scan_.certificates.empty() || !scan_.products.empty()));
+        GoCertificatesButton().IsEnabled(navigationAllowed);
+        GoOfflineButton().IsEnabled(navigationAllowed);
+        const bool backupReady = backupValidation_.ok() &&
+            appliedBackupValidationRevision_ == backupValidationRevision_;
+        const bool probing = backupValidation_.state == cpc::BackupFolderState::ReadyForProbe ||
+            (backupValidation_.ok() && !backupReady);
+        NextStepButton().IsEnabled(idle && selectedProducts > 0 && !probing);
+        if (!idle)
+        {
+            NextStepTitle().Text(T(L"Дождитесь завершения операции", L"Wait for the operation to finish"));
+            NextStepHint().Text(T(L"Текущий этап показан в строке состояния.", L"The status bar shows the current stage."));
+            NextStepText().Text(T(L"Выполняется…", L"Working…"));
+        }
+        else if (selectedProducts == 0)
+        {
+            NextStepTitle().Text(scan_.products.empty() ? T(L"Удалять нечего", L"Nothing to remove")
+                                                       : T(L"1. Выберите программы", L"1. Select applications"));
+            NextStepHint().Text(scan_.products.empty()
+                ? T(L"Можно сохранить найденные данные или проверить другой диск.", L"You can save detected data or inspect another drive.")
+                : T(L"Отметьте нужные продукты в списке. Сертификаты и ключи исключены из очистки.", L"Check the products in the list. Certificates and keys are excluded from cleanup."));
+            NextStepText().Text(T(L"Выберите программы", L"Select applications"));
+        }
+        else if (!backupReady)
+        {
+            NextStepTitle().Text(T(L"2. Выберите папку резервной копии", L"2. Choose a backup folder"));
+            NextStepHint().Text(probing
+                ? T(L"Проверяем доступ на запись и свободное место…", L"Checking write access and free space…")
+                : T(L"До удаления туда сохранятся лицензии, сертификаты и отчёт.", L"Licenses, certificates, and a report will be saved there before removal."));
+            NextStepText().Text(probing ? T(L"Проверяем папку…", L"Checking folder…") : T(L"Выбрать папку", L"Choose folder"));
+        }
+        else
+        {
+            NextStepTitle().Text(T(L"3. Проверьте, что будет удалено", L"3. Review what will be removed"));
+            NextStepHint().Text(T(L"Выбрано программ: ", L"Selected applications: ") + std::to_wstring(selectedProducts) +
+                T(L". Следующий экран покажет состав операции. Удаление требует подтверждения.",
+                  L". The next screen shows the operation details. Removal requires confirmation."));
+            NextStepText().Text(planRevisions_.IsPlanCurrent()
+                ? T(L"Открыть план удаления", L"Open removal plan")
+                : T(L"Подготовить удаление", L"Prepare removal"));
+        }
+
         RescanButton().IsEnabled(idle);
         BackupPath().IsEnabled(idle);
         ChooseBackupButton().IsEnabled(idle);
@@ -1433,7 +1492,7 @@ namespace winrt::CryptoProCleanupModern::implementation
             outputSession_.stages[4] = outputSession_.failureCount ? StageOutcome::Failed : StageOutcome::Succeeded;
             outputSession_.stages[5] = StageOutcome::Succeeded;
         }
-        else if (kind == OutputSessionKind::OfflineRescue)
+        else if (kind == OutputSessionKind::OfflineRescue || kind == OutputSessionKind::LiveBackup)
             outputSession_.stages[2] = StageOutcome::Succeeded;
         outputSession_.stages[7] = outputSession_.restartRequired ? StageOutcome::RestartDeferred : StageOutcome::Skipped;
         for (auto const* name : {L"licenses.txt", L"certificates.txt", L"certificates.p7b", L"summary.txt", L"report.json", L"cleanup.log", L"offline-summary.txt",
@@ -1444,6 +1503,86 @@ namespace winrt::CryptoProCleanupModern::implementation
             if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) outputSession_.files.emplace(name, path);
         }
         UpdateReportsPage();
+    }
+
+
+    void MainWindow::NextStep_Click(IInspectable const& sender, RoutedEventArgs const& args)
+    {
+        if (!operationGate_.idle() || modalOpen_) return;
+        if (cpc::CountSelectedProducts(scan_.products) == 0) return;
+        if (std::wstring(BackupPath().Text().c_str()).empty() ||
+            (!backupValidation_.ok() && backupValidation_.state != cpc::BackupFolderState::ReadyForProbe))
+        {
+            ChooseBackup_Click(sender, args);
+            return;
+        }
+        if (appliedBackupValidationRevision_ != backupValidationRevision_ || !backupValidation_.ok()) return;
+        if (planRevisions_.IsPlanCurrent()) ShowPlanInspector();
+        else CheckPlan_Click(sender, args);
+    }
+
+    winrt::fire_and_forget MainWindow::SaveData_Click(IInspectable const&, RoutedEventArgs const&)
+    {
+        auto lifetime = get_strong();
+        if (modalOpen_ || !operationGate_.idle()) co_return;
+        auto token = BeginOperation(cpc::UiOperation::SavingLiveData,
+            T(L"Выберите папку для сохранения данных.", L"Choose a folder for your backup."));
+        if (!token) co_return;
+        try
+        {
+            const auto source = scan_;
+            const auto language = language_;
+            FolderPicker picker;
+            picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
+            picker.FileTypeFilter().Append(L"*");
+            check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
+            auto folder = co_await picker.PickSingleFolderAsync();
+            if (!folder)
+            {
+                EndOperation(token, T(L"Сохранение отменено.", L"Backup cancelled."), UiStatusKind::Cancelled);
+                co_return;
+            }
+            const std::wstring parent = folder.Path().c_str();
+            std::wstring licensePath, reportPath, logPath, error;
+            bool saved = false;
+            std::exception_ptr failure;
+            apartment_context uiThread;
+            co_await resume_background();
+            try
+            {
+                const auto validation = cpc::ProbeBackupFolder(parent);
+                if (validation.ok())
+                {
+                    // A data-only backup never builds or executes a cleanup plan.
+                    saved = cpc::SaveBackup(language, source, cpc::CleanupPlan{}, parent,
+                                           &licensePath, &reportPath, &logPath, &error);
+                }
+                else error = language == cpc::Language::Russian
+                    ? L"Папка недоступна для записи или недостаточно свободного места. Выберите другую папку."
+                    : L"The folder is not writable or has insufficient free space. Choose another folder.";
+            }
+            catch (...) { failure = std::current_exception(); }
+            co_await uiThread;
+            if (failure) { ReportAsyncFailure(T(L"Сохранение данных", L"Saving data"), failure, token); co_return; }
+            EndOperation(token, saved
+                ? T(L"Лицензии, выбранные открытые сертификаты и отчёт сохранены.", L"Licenses, selected public certificates, and report saved.")
+                : T(L"Резервная копия не завершена.", L"Backup did not complete."),
+                saved ? UiStatusKind::ExportComplete : UiStatusKind::Error);
+            if (!saved)
+            {
+                ShowMessage(T(L"Не удалось сохранить данные", L"Could not save data"), error);
+                co_return;
+            }
+            SetOutputSession(OutputSessionKind::LiveBackup, ParentDirectory(reportPath));
+            AppendLogLine(T(L"Создана резервная копия данных. Удаление не запускалось.",
+                            L"Data backup created. Removal was not started."));
+            Navigation().SelectedItem(NavReports());
+            NavigateTo(L"reports");
+            ShowMessage(T(L"Данные сохранены", L"Backup saved"),
+                T(L"Полные лицензии: licenses.txt. Открытые сертификаты: вложенная папка. Отчёт: summary.txt.\n\n",
+                  L"Full licenses: licenses.txt. Public certificates: subfolder. Report: summary.txt.\n\n") + ParentDirectory(reportPath));
+        }
+        catch (...) { ReportAsyncFailure(T(L"Сохранение данных", L"Saving data"), std::current_exception(), token); }
     }
 
     void MainWindow::Rescan_Click(IInspectable const&, RoutedEventArgs const&)

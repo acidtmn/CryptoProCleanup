@@ -308,9 +308,9 @@ void LayoutNarrowActionRows(AppState& state, int clientWidth, int clientHeight) 
 
     const int overviewHeight = std::max(40, OriginalControlHeight(state, IDC_CLEAN));
     const int overviewTop = footerTop - overviewHeight - gap;
-    const int licenseWidth = std::max(170, (width * 40) / 100);
-    const int scanWidth = std::max(90, (width * 22) / 100);
-    const int cleanWidth = std::max(120, width - licenseWidth - scanWidth - gap * 2);
+    const int licenseWidth = std::max(130, (width * 40) / 100);
+    const int scanWidth = std::max(80, (width * 22) / 100);
+    const int cleanWidth = width - licenseWidth - scanWidth - gap * 2;
     MoveControlTo(state, IDC_SHOW_LICENSES, left, overviewTop, licenseWidth, overviewHeight);
     MoveControlTo(state, IDC_SCAN, left + licenseWidth + gap, overviewTop, scanWidth, overviewHeight);
     MoveControlTo(state, IDC_CLEAN, left + licenseWidth + scanWidth + gap * 2,
@@ -412,13 +412,15 @@ void LayoutLowResolutionPage(AppState& state, int clientWidth, int clientHeight)
         static_cast<int>(state.initialClient.cy - progress->second.top));
     const int actionHeight = 40;
     const int actionTop = footerTop - actionHeight - gap;
-    const int bodyTop = 98;
+    const int bodyTop = overview && clientHeight < 540 ? (clientHeight < 465 ? 38 : 64) : 98;
+    if (overview && clientHeight < 465)
+        MoveControlTo(state, IDC_TITLE, left, 0, std::max(150, languageLeft - left - gap), 32);
 
     if (overview) {
         const int pathTop = actionTop - 43;
         const int backupLabelTop = pathTop - 20;
         const int selectProfilesTop = backupLabelTop - 25;
-        const int profilesLabelTop = selectProfilesTop - 70;
+        const int profilesLabelTop = selectProfilesTop - (clientHeight < 465 ? 62 : 70);
         const int checkPlanTop = profilesLabelTop - 43;
         const int productsListTop = bodyTop + 18;
         MoveControlTo(state, IDC_PRODUCTS_LABEL, left, bodyTop, width, 16);
@@ -426,7 +428,8 @@ void LayoutLowResolutionPage(AppState& state, int clientWidth, int clientHeight)
                       std::max(42, checkPlanTop - productsListTop - 7));
         MoveControlTo(state, IDC_CHECK_PLAN, left, checkPlanTop, width, 34);
         MoveControlTo(state, IDC_PROFILES_LABEL, left, profilesLabelTop, width, 16);
-        MoveControlTo(state, IDC_PROFILES, left, profilesLabelTop + 18, width, 46);
+        MoveControlTo(state, IDC_PROFILES, left, profilesLabelTop + 18, width,
+                      selectProfilesTop - profilesLabelTop - 24);
         MoveControlTo(state, IDC_SELECT_ALL_PROFILES, left, selectProfilesTop, width, 19);
         MoveControlTo(state, IDC_BACKUP_LABEL, left, backupLabelTop, width, 16);
         const int browseWidth = std::min(110, std::max(90, width / 4));
@@ -1349,8 +1352,8 @@ void UpdatePageHeader(AppState& state) {
         case Page::Overview:
             eyebrow = Tr(state.language, L"СИСТЕМА / ОБЗОР", L"SYSTEM / OVERVIEW");
             title = Tr(state.language, L"Обзор", L"Overview");
-            subtitle = Tr(state.language, L"Продукты CryptoPro, лицензии и защищённые данные",
-                          L"CryptoPro products, licenses and protected data");
+            subtitle = Tr(state.language, L"1. Выберите программы. 2. Укажите папку копии. 3. Проверьте удаление.",
+                          L"1. Select apps. 2. Choose a backup folder. 3. Review removal.");
             break;
         case Page::Certificates:
             eyebrow = Tr(state.language, L"ДАННЫЕ / СЕРТИФИКАТЫ", L"DATA / CERTIFICATES");
@@ -1475,7 +1478,7 @@ void ApplyLanguage(AppState& state) {
 #ifdef CPC_MODERN_UI
     SetText(state.window, IDC_BRAND_VERSION, L"MODERN x64 / 0.5");
 #else
-    SetText(state.window, IDC_BRAND_VERSION, L"LEGACY / 0.5");
+    SetText(state.window, IDC_BRAND_VERSION, L"LEGACY / 0.6");
 #endif
     SetText(state.window, IDC_NAV_OVERVIEW, Tr(state.language, L"Обзор", L"Overview"));
     SetText(state.window, IDC_NAV_CERTIFICATES, Tr(state.language, L"Сертификаты", L"Certificates"));
@@ -1495,10 +1498,10 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_STAT_LICENSES_VALUE, std::to_wstring(state.scan.licenses.size()));
     SetText(state.window, IDC_STAT_CERTS_VALUE, std::to_wstring(state.scan.certificates.size()));
     SetText(state.window, IDC_STAT_PROFILES_VALUE, std::to_wstring(state.scan.profiles.size()));
-    SetText(state.window, IDC_PRODUCTS_LABEL, Tr(state.language, L"Обнаруженные продукты", L"Detected products"));
+    SetText(state.window, IDC_PRODUCTS_LABEL, Tr(state.language, L"1. Программы для удаления", L"1. Applications to remove"));
     SetText(state.window, IDC_PROFILES_LABEL, Tr(state.language, L"Локальные профили для очистки настроек", L"Local profiles whose settings may be cleaned"));
     SetText(state.window, IDC_SELECT_ALL_PROFILES, Tr(state.language, L"Выбрать все профили", L"Select all profiles"));
-    SetText(state.window, IDC_BACKUP_LABEL, Tr(state.language, L"Папка резервной копии", L"Backup folder"));
+    SetText(state.window, IDC_BACKUP_LABEL, Tr(state.language, L"2. Папка резервной копии", L"2. Backup folder"));
     SetText(state.window, IDC_BROWSE, Tr(state.language, L"Обзор...", L"Browse..."));
     SetText(state.window, IDC_BACKUP_INFO, Tr(state.language,
         L"Будут созданы: licenses.txt (полные лицензии), папка с выбранными .cer/.p7b, summary.txt, report.json и cleanup.log. Закрытые ключи не экспортируются. Сохраните копию вне системного диска.",
@@ -1506,12 +1509,12 @@ void ApplyLanguage(AppState& state) {
     SetText(state.window, IDC_SCAN, Tr(state.language, L"Сканировать", L"Scan"));
     SetText(state.window, IDC_CLEAN, Tr(state.language, L"Удалить выбранное", L"Remove selected"));
     SetText(state.window, IDC_SHOW_LICENSES, Tr(state.language, L"Показать / копировать лицензию", L"Show / copy license"));
-    SetText(state.window, IDC_PLAN_LABEL, Tr(state.language, L"Проверяемый план", L"Verified plan"));
+    SetText(state.window, IDC_PLAN_LABEL, Tr(state.language, L"3. Проверка удаления", L"3. Review removal"));
     SetText(state.window, IDC_CHECK_PLAN, Tr(state.language, L"Проверить план", L"Check plan"));
     if (state.plan.targets.empty()) {
         SetText(state.window, IDC_PLAN_SUMMARY, Tr(state.language,
-            L"Постройте безопасный план только для выбранных продуктов и профилей.",
-            L"Build a safe plan for the selected products and profiles."));
+            L"Проверить план — посмотреть состав очистки. Удаление начнётся только после отдельного подтверждения.",
+            L"Check plan previews the cleanup. Removal starts only after a separate confirmation."));
     } else {
         SetText(state.window, IDC_PLAN_SUMMARY,
             Tr(state.language, L"Подтверждённых целей: ", L"Verified targets: ") +

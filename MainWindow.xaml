@@ -68,6 +68,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <Grid x:Name="HeaderGrid" Margin="30,24,30,16" ColumnSpacing="16" RowSpacing="12">
@@ -105,6 +106,19 @@
                     <!-- OVERVIEW -->
                     <ScrollViewer x:Name="OverviewPage" VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="30,0,30,24" Spacing="14">
+                            <Border Style="{StaticResource ContentCardStyle}" BorderBrush="{ThemeResource AccentBorderBrush}">
+                                <StackPanel Spacing="12">
+                                    <TextBlock x:Name="StartTitle" Text="Что вы хотите сделать?" Style="{StaticResource SectionTitleStyle}"/>
+                                    <TextBlock x:Name="StartHint" Style="{StaticResource MutedTextStyle}" Text="Сохраните данные перед переустановкой или подготовьте удаление ниже."/>
+                                    <ItemsControl>
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="236"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <Button x:Name="SaveDataButton" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButtonStyle}" Click="SaveData_Click"><TextBlock x:Name="SaveDataText" Text="Сохранить данные" Style="{StaticResource ButtonLabelStyle}"/></Button>
+                                        <Button x:Name="GoCertificatesButton" Tag="certificates" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource RoundedButtonStyle}" Click="CompactNavigation_Click"><TextBlock x:Name="GoCertificatesText" Text="Выбрать сертификаты" Style="{StaticResource ButtonLabelStyle}"/></Button>
+                                        <Button x:Name="GoOfflineButton" Tag="offline" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource RoundedButtonStyle}" Click="CompactNavigation_Click"><TextBlock x:Name="GoOfflineText" Text="Данные с другого диска" Style="{StaticResource ButtonLabelStyle}"/></Button>
+                                    </ItemsControl>
+                                    <TextBlock x:Name="SaveDataHint" Style="{StaticResource MutedTextStyle}" FontSize="12" Text="Сохраняются полные лицензии, выбранные открытые сертификаты и отчёт. Удаление не запускается."/>
+                                </StackPanel>
+                            </Border>
                             <Grid x:Name="OverviewStatsGrid" ColumnSpacing="12" RowSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
@@ -130,9 +144,9 @@
                                 <StackPanel x:Name="OverviewLeftColumn" Spacing="14">
                                     <Border x:Name="ProductsTableCard" Style="{StaticResource TableCardStyle}" MinHeight="270" AutomationProperties.Name="Обнаруженные продукты">
                                         <StackPanel Spacing="12">
-                                            <Grid Padding="{StaticResource TableHeaderPadding}">
+                                            <Grid Padding="{StaticResource TableHeaderPadding}" ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                                 <StackPanel><TextBlock x:Name="ProductsTitle" Text="Обнаруженные продукты" Style="{StaticResource SectionTitleStyle}"/><TextBlock x:Name="ProductsSubtitle" Text="Удаляются только записи подтверждённого издателя" Style="{StaticResource MutedTextStyle}" FontSize="11"/></StackPanel>
-                                                <Border HorizontalAlignment="Right" Background="{ThemeResource BadgeNeutralBackgroundBrush}" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="1" CornerRadius="9" Padding="10,6"><TextBlock x:Name="SelectedProductsBadge" Text="Выбрано: 0" FontSize="10" Foreground="{ThemeResource BadgeNeutralForegroundBrush}"/></Border>
+                                                <Border Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Background="{ThemeResource BadgeNeutralBackgroundBrush}" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="1" CornerRadius="9" Padding="10,6"><TextBlock x:Name="SelectedProductsBadge" Text="Выбрано: 0" FontSize="10" Foreground="{ThemeResource BadgeNeutralForegroundBrush}"/></Border>
                                             </Grid>
                                             <Rectangle Height="1" Fill="{ThemeResource SubtleBorderBrush}"/>
                                             <Grid Padding="16,0,16,0" ColumnSpacing="12">
@@ -296,15 +310,22 @@
                     </ScrollViewer>
                 </Grid>
 
-                <Border Grid.Row="2" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="30,10">
+                <Border x:Name="NextStepBar" Grid.Row="2" Background="{ThemeResource SurfaceRaisedBrush}" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14">
+                    <Grid ColumnSpacing="18">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Spacing="4"><TextBlock x:Name="NextStepTitle" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock x:Name="NextStepHint" Style="{StaticResource MutedTextStyle}" FontSize="12"/></StackPanel>
+                        <Button x:Name="NextStepButton" Grid.Column="1" MaxWidth="240" VerticalAlignment="Center" Style="{StaticResource PrimaryButtonStyle}" Click="NextStep_Click"><TextBlock x:Name="NextStepText" Style="{StaticResource ButtonLabelStyle}" Text="Продолжить"/></Button>
+                    </Grid>
+                </Border>
+                <Border Grid.Row="3" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="30,10">
                     <Grid><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse x:Name="FooterStatusDot" Width="7" Height="7" Fill="{ThemeResource SuccessBrush}"/><TextBlock x:Name="FooterStatus" Text="Запуск безопасного сканирования…" FontSize="10" Foreground="{ThemeResource SecondaryTextBrush}"/></StackPanel><ProgressBar x:Name="GlobalProgress" Width="120" Height="3" HorizontalAlignment="Center" IsIndeterminate="True"/><TextBlock x:Name="FooterVersion" Text="КОД АЛЕКСАНДРОВА" HorizontalAlignment="Right" FontSize="9" CharacterSpacing="120" Foreground="{ThemeResource TertiaryTextBrush}"/></Grid>
                 </Border>
             </Grid>
         </NavigationView>
 
         <Grid x:Name="CompactRail"
-              Width="48"
-              Margin="8,78,0,8"
+              Width="88"
+              Margin="4,78,0,8"
               HorizontalAlignment="Left"
               VerticalAlignment="Stretch"
               Visibility="Collapsed"
@@ -315,14 +336,14 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <StackPanel Spacing="4">
-                <Button x:Name="CompactOverview" Style="{StaticResource CompactNavigationButtonStyle}" Tag="overview" AutomationProperties.Name="Обзор" Click="CompactNavigation_Click"><SymbolIcon Symbol="Home"/></Button>
-                <Button x:Name="CompactCertificates" Style="{StaticResource CompactNavigationButtonStyle}" Tag="certificates" AutomationProperties.Name="Открытые сертификаты" Click="CompactNavigation_Click"><SymbolIcon Symbol="ContactInfo"/></Button>
-                <Button x:Name="CompactOffline" Style="{StaticResource CompactNavigationButtonStyle}" Tag="offline" AutomationProperties.Name="Офлайн-Windows" Click="CompactNavigation_Click"><SymbolIcon Symbol="OpenFile"/></Button>
-                <Button x:Name="CompactReports" Style="{StaticResource CompactNavigationButtonStyle}" Tag="reports" AutomationProperties.Name="Журнал и отчёты" Click="CompactNavigation_Click"><SymbolIcon Symbol="Document"/></Button>
+                <Button x:Name="CompactOverview" Style="{StaticResource CompactNavigationButtonStyle}" Tag="overview" AutomationProperties.Name="Обзор" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Home"/><TextBlock x:Name="CompactOverviewText" Text="Главная" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
+                <Button x:Name="CompactCertificates" Style="{StaticResource CompactNavigationButtonStyle}" Tag="certificates" AutomationProperties.Name="Открытые сертификаты" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="ContactInfo"/><TextBlock x:Name="CompactCertificatesText" Text="Сертификаты" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
+                <Button x:Name="CompactOffline" Style="{StaticResource CompactNavigationButtonStyle}" Tag="offline" AutomationProperties.Name="Офлайн-Windows" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="OpenFile"/><TextBlock x:Name="CompactOfflineText" Text="Другой диск" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
+                <Button x:Name="CompactReports" Style="{StaticResource CompactNavigationButtonStyle}" Tag="reports" AutomationProperties.Name="Журнал и отчёты" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Document"/><TextBlock x:Name="CompactReportsText" Text="Отчёты" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
             </StackPanel>
             <StackPanel Grid.Row="2" Spacing="4">
-                <Button x:Name="CompactSettings" Style="{StaticResource CompactNavigationButtonStyle}" Tag="settings" AutomationProperties.Name="Настройки" Click="CompactNavigation_Click"><SymbolIcon Symbol="Setting"/></Button>
-                <Button x:Name="CompactAbout" Style="{StaticResource CompactNavigationButtonStyle}" Tag="about" AutomationProperties.Name="О программе" Click="CompactNavigation_Click"><SymbolIcon Symbol="Help"/></Button>
+                <Button x:Name="CompactSettings" Style="{StaticResource CompactNavigationButtonStyle}" Tag="settings" AutomationProperties.Name="Настройки" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Setting"/><TextBlock x:Name="CompactSettingsText" Text="Настройки" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
+                <Button x:Name="CompactAbout" Style="{StaticResource CompactNavigationButtonStyle}" Tag="about" AutomationProperties.Name="О программе" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Help"/><TextBlock x:Name="CompactAboutText" Text="О программе" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
             </StackPanel>
         </Grid>
     </Grid>

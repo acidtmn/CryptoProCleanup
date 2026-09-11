@@ -30,6 +30,8 @@ namespace winrt::CryptoProCleanupModern::implementation
                                  Microsoft::UI::Xaml::RoutedEventArgs const&);
         void WindowRoot_SizeChanged(winrt::Windows::Foundation::IInspectable const&,
                                     Microsoft::UI::Xaml::SizeChangedEventArgs const& args);
+        void NextStep_Click(winrt::Windows::Foundation::IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+        winrt::fire_and_forget SaveData_Click(winrt::Windows::Foundation::IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
         void Rescan_Click(winrt::Windows::Foundation::IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
         winrt::fire_and_forget ChooseBackup_Click(winrt::Windows::Foundation::IInspectable const&,
                                                   Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -75,7 +77,7 @@ namespace winrt::CryptoProCleanupModern::implementation
     private:
         enum class UiStatusKind { Idle, Working, ScanComplete, ExportComplete, Cancelled, PlanReady, PlanStale,
                                   Warning, Partial, Success, RestartRequired, Error };
-        enum class OutputSessionKind { None, CertificateExport, LiveCleanup, OfflineRescue, OfflineCleanup, ResumeCleanup };
+        enum class OutputSessionKind { None, LiveBackup, CertificateExport, LiveCleanup, OfflineRescue, OfflineCleanup, ResumeCleanup };
         enum class StageOutcome { NotStarted, Running, Succeeded, Skipped, Failed, RestartDeferred };
         struct OutputSession
         {

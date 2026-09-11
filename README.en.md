@@ -1,5 +1,9 @@
 # CryptoPro Cleanup Utility
 
+> **Local 0.6.0-preview1 — awaiting author testing, not published.** Modern now has explicit home actions, data-only backup without removal, and a persistent next-step guide. [Local testing guide (RU)](docs/LOCAL_PREVIEW_0.6.0.md) · [Checks and limitations (RU)](docs/AUDIT_0.6.0.md).
+
+The description below documents the published version; download links point to the public releases.
+
 [![Windows build](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml/badge.svg)](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/acidtmn/CryptoProCleanup?include_prereleases)](https://github.com/acidtmn/CryptoProCleanup/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -12,35 +16,6 @@ An unofficial portable utility for backing up license identifiers and public cer
 This project is not affiliated with Crypto-Pro LLC. CryptoPro names are used only to describe compatibility. The utility neither downloads nor runs `cspclean.exe`.
 
 **[Download the latest build](https://github.com/acidtmn/CryptoProCleanup/releases)** · [Документация на русском](README.md)
-
-<p align="center">
-  <img src="docs/images/0.5.3/overview.png" alt="CryptoPro Cleanup Modern overview" width="960">
-</p>
-
-<details>
-<summary><strong>More screenshots: certificates, disconnected Windows, reports, settings, and About</strong></summary>
-
-### Public certificates
-
-![Public-certificate selection and export](docs/images/0.5.3/certificates.png)
-
-### Disconnected Windows
-
-![Safe scan of a connected Windows disk](docs/images/0.5.3/offline-windows.png)
-
-### Reports
-
-![Privacy-safe journal and reports](docs/images/0.5.3/reports.png)
-
-### Settings
-
-![Language, theme, and window behavior](docs/images/0.5.3/settings.png)
-
-### About
-
-![Version, SHA-256, project links, and attribution](docs/images/0.5.3/about.png)
-
-</details>
 
 ## Important warning
 

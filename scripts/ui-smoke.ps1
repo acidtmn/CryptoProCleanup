@@ -297,6 +297,13 @@ try {
     Start-Sleep -Milliseconds 400
     Save-WindowScreenshot $handle 'settings-1024x760-system'
 
+    if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable.' }
+    Start-Sleep -Milliseconds 300
+    foreach ($id in @('SaveDataButton','GoCertificatesButton','GoOfflineButton','NextStepButton','NextStepTitle')) {
+        $element = Find-UiElementById $root $id
+        if (-not $element -or $element.Current.IsOffscreen) { throw "Guided home action is not visible: $id" }
+    }
+    Save-WindowScreenshot $handle 'home-1024x760-system-ru'
     if (-not (Select-UiItemById $root 'NavAbout')) {
         throw 'About navigation item is unavailable.'
     }
@@ -403,10 +410,36 @@ try {
             Assert-UiElementFullyVisible $root 'Open program folder'
         } elseif ($pageName -eq 'Overview') {
             Assert-UiElementFullyVisible $root 'Scan again'
+            Assert-UiElementFullyVisible $root 'Back up data'
+            Assert-UiElementFullyVisible $root 'Choose certificates'
+            Assert-UiElementFullyVisible $root 'Data from another drive'
+            $next = Find-UiElementById $root 'NextStepTitle'
+            if (-not $next -or $next.Current.IsOffscreen -or [string]::IsNullOrWhiteSpace($next.Current.Name)) {
+                throw 'The persistent next-step explanation is missing.'
+            }
+            Save-WindowScreenshot $handle 'home-1280x720-system-en'
         }
     }
 
-    Write-Host "UI smoke passed: launch, responsive resize, Dark/Light/System, all six pages, empty reports, checkbox accessibility, Settings, About, and RU/EN title. Artifacts: $ArtifactsDirectory"
+    if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable for shortcut checks.' }
+    [CpcSmokeNative]::SetForegroundWindow($handle) | Out-Null
+    Start-Sleep -Milliseconds 300
+    (Find-UiElementById $root 'OverviewPage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+    Start-Sleep -Milliseconds 300
+    (Find-UiElementById $root 'GoCertificatesButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Public certificates' } 5)) {
+        Save-WindowScreenshot $handle 'shortcut-diagnostic'
+        throw "Certificate shortcut did not navigate: title=$((Find-UiElementById $root 'PageTitle').Current.Name)"
+    }
+    if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home did not reopen.' }
+    Start-Sleep -Milliseconds 300
+    (Find-UiElementById $root 'OverviewPage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+    Start-Sleep -Milliseconds 300
+    (Find-UiElementById $root 'GoOfflineButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Offline Windows' } 5)) {
+        throw 'Another-drive shortcut did not navigate to the offline page.'
+    }
+    Write-Host "UI smoke passed: launch, responsive resize, Dark/Light/System, all six pages, empty reports, checkbox accessibility, RU/EN, and home shortcuts. Artifacts: $ArtifactsDirectory"
 } finally {
     if (-not $process.HasExited) {
         $process.CloseMainWindow() | Out-Null

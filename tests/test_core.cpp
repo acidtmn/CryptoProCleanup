@@ -142,7 +142,7 @@ int wmain(int argc, wchar_t** argv) {
     Expect(FromUtf8(Utf8(unicode)) == unicode, "UTF-8 round trip");
 
     UiOperationGate operationGate;
-    Expect(std::wstring(kVersion) == L"0.5.3-rc1", "Central release-candidate version");
+    Expect(std::wstring(kVersion) == L"0.6.0-preview1", "Central preview version");
     Expect(NormalizeThemeMode(0) == ThemeMode::Dark &&
            NormalizeThemeMode(1) == ThemeMode::System &&
            NormalizeThemeMode(2) == ThemeMode::Light,
@@ -537,7 +537,23 @@ int wmain(int argc, wchar_t** argv) {
                 Expect(bundle != nullptr, "Exported P7B bundle can be reopened by CryptoAPI");
                 if (bundle) CertCloseStore(bundle, 0);
             }
-            Expect(DeleteGeneratedTree(generatedParent), "Temporary certificate export is removed");
+            std::wstring savedLicense, savedReport, savedLog, backupError;
+            Expect(SaveBackup(Language::English, scan, CleanupPlan{}, generatedParent,
+                              &savedLicense, &savedReport, &savedLog, &backupError),
+                   "Data-only backup succeeds without a cleanup plan");
+            Expect(GetFileAttributesW(savedLicense.c_str()) != INVALID_FILE_ATTRIBUTES &&
+                   GetFileAttributesW(savedReport.c_str()) != INVALID_FILE_ATTRIBUTES &&
+                   GetFileAttributesW(savedLog.c_str()) != INVALID_FILE_ATTRIBUTES,
+                   "Data-only backup creates licenses, report, and log");
+            const ScanResult afterBackup = ScanSystem(Language::English);
+            std::vector<std::wstring> beforeCertificates, afterCertificates;
+            for (const auto& cert : scan.certificates) beforeCertificates.push_back(cert.thumbprint + cert.profileSid);
+            for (const auto& cert : afterBackup.certificates) afterCertificates.push_back(cert.thumbprint + cert.profileSid);
+            std::sort(beforeCertificates.begin(), beforeCertificates.end());
+            std::sort(afterCertificates.begin(), afterCertificates.end());
+            Expect(beforeCertificates == afterCertificates, "Data-only backup preserves source certificate inventory");
+            Expect(scan.products.size() == afterBackup.products.size(), "Data-only backup preserves installed products");
+            Expect(DeleteGeneratedTree(generatedParent), "Temporary certificate export and data backup are removed");
         } else {
             Expect(false, "Temporary certificate export folder is created");
         }

@@ -2,6 +2,28 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
+## [0.6.0-preview1] - Unreleased
+
+### Changed
+
+- Modern home now separates data backup, certificate selection, and another-drive rescue from preparation for removal.
+- Added a persistent next-step guide for product selection, backup-folder validation, and plan review. It never removes products directly.
+- Added a data-only live backup action using the shared backup engine and operation gate, with cancellation, error handling, and report navigation.
+- Labeled compact navigation in RU/EN, adopted blue safe-action accents in Light/Dark themes, and separated the product heading from its selection counter.
+- Clarified numbered steps in Legacy while retaining its low-resolution layout.
+
+### Fixed
+
+- Resume-helper version validation now uses the centralized build version instead of a hardcoded 0.5.3.0 value.
+- Modern file-description resources explicitly declare UTF-8 encoding.
+- Legacy product-list/plan-button overlap at short window heights and action-row overflow at the minimum width; smoke tests now check intersections at 768×528 and 640×480.
+
+### Verification
+
+- Added safe integration coverage for data-only backup and unchanged product/certificate inventory.
+- Expanded Modern UI smoke coverage for the new home actions and persistent next-step explanation.
+- This is a local preview, not a stable/public release. Destructive and full Windows/CSP VM-matrix tests remain outstanding.
+
 ## [0.5.3-rc1] - 2026-08-21
 
 ### Changed
