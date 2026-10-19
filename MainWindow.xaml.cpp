@@ -2083,6 +2083,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         }
         if (shown == 0)
         {
+            SelectedCertInitials().Text(L"—");
             auto empty = Text(T(L"Сертификаты по текущему фильтру не найдены.", L"No certificates match the current filters."), 12);
             empty.HorizontalAlignment(HorizontalAlignment::Center);
             empty.Margin(Thickness{0, 40, 0, 0});

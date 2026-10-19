@@ -2,7 +2,8 @@ param(
     [string]$Executable,
     [string]$ArtifactsDirectory,
     [switch]$NoScreenshots,
-    [switch]$ExerciseBackup
+    [switch]$ExerciseBackup,
+    [switch]$PublicGallery
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +15,9 @@ $versionMatch = [regex]::Match($versionHeader, '#define\s+CPC_VERSION_TEXT\s+"([
 if (-not $versionMatch.Success) { throw 'The centralized version could not be read.' }
 $expectedVersion = $versionMatch.Groups[1].Value
 if (-not $ArtifactsDirectory) { $ArtifactsDirectory = Join-Path $projectRoot "artifacts\ui-smoke\$expectedVersion" }
+if ($PublicGallery -and ($NoScreenshots -or $ExerciseBackup)) {
+    throw 'PublicGallery cannot be combined with NoScreenshots or ExerciseBackup.'
+}
 
 $settingsPath = 'HKCU:\Software\CodeAlexandrov\CryptoProCleanup\ModernWinUI'
 $settingsExisted = Test-Path -LiteralPath $settingsPath
@@ -36,6 +40,7 @@ public static class CpcSmokeNative {
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, uint attribute, out RECT r, uint size);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int command);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr h);
@@ -228,6 +233,10 @@ function Save-WindowScreenshot([IntPtr]$Handle, [string]$Name) {
     New-Item -ItemType Directory -Path $ArtifactsDirectory -Force | Out-Null
     $rectangle = [CpcSmokeNative+RECT]::new()
     if (-not [CpcSmokeNative]::GetWindowRect($Handle, [ref]$rectangle)) { throw 'GetWindowRect failed.' }
+    $visibleRectangle = [CpcSmokeNative+RECT]::new()
+    if ([CpcSmokeNative]::DwmGetWindowAttribute($Handle, 9, [ref]$visibleRectangle, 16) -eq 0) {
+        $rectangle = $visibleRectangle
+    }
     $width = $rectangle.Right - $rectangle.Left
     $height = $rectangle.Bottom - $rectangle.Top
     $bitmap = [System.Drawing.Bitmap]::new($width, $height)
@@ -309,6 +318,56 @@ try {
     $systemLabel = -join ([char[]](0x0421,0x0438,0x0441,0x0442,0x0435,0x043c,0x043d,0x0430,0x044f))
     Select-ComboValue -Combo $themeCombo -ItemName $darkLabel
     Start-Sleep -Milliseconds 400
+    if ($PublicGallery) {
+        # Перед публичным захватом убираем путь и скрываем личные сертификаты штатным фильтром.
+        [CpcSmokeNative]::SetWindowPos($handle, [IntPtr]::Zero, 40, 40, 1440, 1000, 0x0004) | Out-Null
+        if (-not (Select-UiItemById $root 'NavCleanup')) { throw 'Removal is unavailable.' }
+        if (-not (Wait-Until { $null -ne (Find-UiElementById $root 'BackupPath') } 10)) { throw 'Backup path is unavailable.' }
+        $backupInput = Find-UiElementById $root 'BackupPath'
+        $backupInput.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('')
+        if (-not (Select-UiItemById $root 'NavCertificates')) { throw 'Certificates are unavailable.' }
+        if (-not (Wait-Until { $null -ne (Find-UiElementById $root 'CertificateSearch') } 10)) { throw 'Certificate search is unavailable.' }
+        $searchInput = Find-UiElementById $root 'CertificateSearch'
+        $searchInput.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('github-gallery')
+        Start-Sleep -Milliseconds 400
+        $initials = Find-UiElementById $root 'SelectedCertInitials'
+        $thumbprint = Find-UiElementById $root 'SelectedCertThumbprint'
+        if ($initials.Current.Name -ne [string][char]0x2014 -or
+            $thumbprint.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne ('SHA-1: ' + [char]0x2014)) {
+            throw 'The certificate filter did not hide private details. Public capture aborted.'
+        }
+        $galleryPages = @(
+            @{ Id = 'NavOverview'; File = '01-home' },
+            @{ Id = 'NavCleanup'; File = '02-removal' },
+            @{ Id = 'NavCertificates'; File = '03-certificates' },
+            @{ Id = 'NavOffline'; File = '04-offline' },
+            @{ Id = 'NavReports'; File = '05-reports' },
+            @{ Id = 'NavSettings'; File = '06-settings' },
+            @{ Id = 'NavAbout'; File = '07-about' }
+        )
+        foreach ($page in $galleryPages) {
+            if (-not (Select-UiItemById $root $page.Id)) { throw "Gallery navigation failed: $($page.Id)" }
+            Start-Sleep -Milliseconds 400
+            $visible = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::IsOffscreenProperty, $false))
+            foreach ($element in $visible) {
+                $text = $element.Current.Name
+                if ($text -match '(?i)[a-z]:\\(?:users|kirill)\\|S-1-5-21-|\b[0-9a-f]{40}\b') {
+                    throw "A personal path, SID or thumbprint is visible. Public capture aborted: $($page.Id)"
+                }
+            }
+            Save-WindowScreenshot $handle $page.File
+        }
+        if (-not (Wait-Until { Select-UiItemById $root 'NavSettings' } 10)) { throw 'Settings is unavailable.' }
+        Start-Sleep -Milliseconds 400
+        Select-ComboValue -Combo $themeCombo -ItemName $lightLabel
+        if (-not (Wait-Until { Select-UiItemById $root 'NavOverview' } 10)) { throw 'Home is unavailable.' }
+        Start-Sleep -Milliseconds 400
+        Save-WindowScreenshot $handle '08-home-light'
+        Write-Host "Public gallery captured: seven sections plus Light home. Review every image before upload: $ArtifactsDirectory"
+        return
+    }
     Assert-DarkCompactNavigation $root $handle
     Save-WindowScreenshot $handle 'settings-1024x760-dark'
     if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable in Dark theme.' }

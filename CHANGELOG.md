@@ -15,6 +15,13 @@ All notable project changes are documented here. The project follows semantic ve
 - Kept certificate export visible in a fixed action bar and corrected the minimum-window bounds so the footer and compact navigation remain inside a 900×650 window.
 - Added SelectionChanged handling for programmatic and keyboard navigation, following the NavigationView contract.
 - Reused Legacy's native folder picker in a shared module for all Modern directory selections, avoiding WinRT StorageFolder conversion failures.
+- Clear the certificate initials when filters hide all entries, alongside the already cleared subject, issuer, dates, and thumbprint.
+- Published RU/EN release documentation and a privacy-checked gallery of all seven sections plus Light home; personal certificates are hidden by a search filter.
+
+### Verification
+
+- Locally built Release x64 and passed native tests on Windows 11 x64. Safe GUI backup and packaged-app UI checks passed; see the release notes for the exact scope.
+- Published as a pre-release. Full Windows/CSP and destructive/reboot testing remain outstanding.
 
 ## [0.6.0-preview1] - 2026-09-11
 

@@ -1,8 +1,10 @@
 # CryptoPro Cleanup Utility
 
-> **Modern 0.7.0 for Windows 10/11 x64 - local build.** A new task-based home page, separate removal workspace, and refreshed design. [Launch and changes (RU)](docs/LOCAL_0.7.0.md).
+### Back up what matters. Remove what you no longer need.
 
-GitHub download links point to published versions. The local 0.7.0 build is in `dist`. Windows 7 users can continue using the separate Legacy edition.
+**Modern 0.7.0 for Windows 10/11 x64** starts with three tasks: back up data, remove applications, or inspect another drive. Native WinUI 3, Light/Dark/System themes, Russian and English. Portable, with no separate .NET installation.
+
+This is a **pre-release**. [Changes and verification (RU/EN)](docs/RELEASE_NOTES_0.7.0.md).
 
 [![Windows build](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml/badge.svg)](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/acidtmn/CryptoProCleanup?include_prereleases)](https://github.com/acidtmn/CryptoProCleanup/releases)
@@ -15,13 +17,50 @@ An unofficial portable utility for backing up license identifiers and public cer
 
 This project is not affiliated with Crypto-Pro LLC. CryptoPro names are used only to describe compatibility. The utility neither downloads nor runs `cspclean.exe`.
 
-**[Download the latest build](https://github.com/acidtmn/CryptoProCleanup/releases)** · [Документация на русском](README.md)
+**[Download Modern 0.7.0](https://github.com/acidtmn/CryptoProCleanup/releases/download/v0.7.0/CryptoProCleanup-Modern-x64-0.7.0.zip)** · [All files and SHA-256](https://github.com/acidtmn/CryptoProCleanup/releases/tag/v0.7.0) · [Legacy for Windows 7/8 and x86](https://github.com/acidtmn/CryptoProCleanup/releases/download/v0.6.0-preview1/CryptoProCleanup-Legacy-x86-0.6.0-preview1.exe) · [Русский](README.md)
+
+![Modern 0.7.0 home: three tasks and system inventory](docs/screenshots/0.7.0/01-home.png)
+
+<details>
+<summary>All sections and the Light theme - 7 more screenshots</summary>
+
+### Removal
+
+![Removal preparation and plan review](docs/screenshots/0.7.0/02-removal.png)
+
+### Public certificates
+
+Personal certificates are hidden with the search filter for this public screenshot. CER/P7B exports contain no private keys.
+
+![Certificate filters and export workspace](docs/screenshots/0.7.0/03-certificates.png)
+
+### Another drive
+
+![Disconnected Windows rescue](docs/screenshots/0.7.0/04-offline.png)
+
+### Reports
+
+![Privacy-safe reports](docs/screenshots/0.7.0/05-reports.png)
+
+### Settings
+
+![Language and theme settings](docs/screenshots/0.7.0/06-settings.png)
+
+### About
+
+![Version, signature and project links](docs/screenshots/0.7.0/07-about.png)
+
+### Light theme
+
+![Light home](docs/screenshots/0.7.0/08-home-light.png)
+
+</details>
 
 ## Important warning
 
-Removing cryptographic software can affect electronic signatures, Windows sign-in, VPN, EFS, TLS, and access to encrypted data. A public release must pass the VM matrix in [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md). An unsigned executable may trigger SmartScreen.
+Removing cryptographic software can affect electronic signatures, Windows sign-in, VPN, EFS, TLS, and access to encrypted data. General availability requires the VM matrix in [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md); this pre-release has not completed it. An unsigned executable may trigger SmartScreen.
 
-The current local build is unsigned. About verifies the actual signature state of the running EXE and calculates SHA-256 only on explicit request. The open source and `SHA256SUMS.txt` provide verification for distributed archives.
+The build is unsigned. About checks the signature state and calculates SHA-256 on request. Compare downloads with `SHA256SUMS-0.7.0.txt` to verify integrity; a checksum is not a digital signature.
 
 The utility deliberately preserves Windows certificate stores, hardware tokens, private-key containers, and any object whose CryptoPro ownership cannot be verified.
 
@@ -61,6 +100,8 @@ Both editions use the exact same discovery, backup, key-container protection, re
 Modern settings offer Dark, Light, and System. System follows Windows while the application is running, and High Contrast uses system color resources. Changing theme or language does not reset safe-scan results, certificate selection, or a reviewed plan. In 0.5.3, the header, filters, path selectors, Settings, Reports, and About actions wrap without shortening their labels.
 
 Legacy 0.5.3 has a dedicated compact layout for small Windows 7 displays. At 800×600 and 1024×768 all six sections and primary actions remain visible, while tables, Settings, Reports, and Offline Windows controls are compacted without overlapping buttons. The minimum window size is 640×480.
+
+Modern 0.7.0 requires Windows 10 version 1809 or later, x64. Legacy was not updated in this release; its download links to the separate 0.6.0-preview1 build. ARM64 emulation was not tested for this version.
 
 ## System requirements
 
