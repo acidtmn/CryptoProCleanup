@@ -1,4 +1,4 @@
-param([string]$Version)
+param([string]$Version, [switch]$ModernOnly, [switch]$SkipBuild)
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -8,8 +8,10 @@ if (-not $Version) {
     if (-not $match.Success) { throw 'The centralized version could not be read from src\version.hpp.' }
     $Version = $match.Groups[1].Value
 }
-& (Join-Path $PSScriptRoot 'build.ps1') -Configuration Release -Platform Win32
-& (Join-Path $PSScriptRoot 'build.ps1') -Configuration Release -Platform x64
+if (-not $SkipBuild) {
+    if (-not $ModernOnly) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration Release -Platform Win32 }
+    & (Join-Path $PSScriptRoot 'build.ps1') -Configuration Release -Platform x64
+}
 
 $distRoot = Join-Path $projectRoot 'dist'
 $packageRoot = Join-Path $distRoot "CryptoProCleanup-$Version"
@@ -23,7 +25,7 @@ $modernBuild = Join-Path $projectRoot 'build\x64\Release\Modern'
 $modernStage = Join-Path $packageRoot 'Modern-Windows10-11-x64'
 $legacyStage = Join-Path $packageRoot 'Legacy-Windows7-11-x86'
 New-Item -ItemType Directory -Path $modernStage -Force | Out-Null
-New-Item -ItemType Directory -Path $legacyStage -Force | Out-Null
+if (-not $ModernOnly) { New-Item -ItemType Directory -Path $legacyStage -Force | Out-Null }
 foreach ($item in Get-ChildItem -LiteralPath $modernBuild -Force) {
     if ($item.Name -in @('CryptoProCleanupModern.exe', 'CryptoProCleanupModern.lib', 'CryptoProCleanupModern.exp', 'CryptoProCleanupModern.winmd')) { continue }
     if (-not $item.PSIsContainer -and $item.Extension -in @('.pdb', '.lib', '.exp')) { continue }
@@ -33,7 +35,7 @@ foreach ($item in Get-ChildItem -LiteralPath $modernBuild -Force) {
 }
 if (-not (Test-Path -LiteralPath (Join-Path $modernStage 'CryptoProCleanup.exe'))) { throw 'Modern executable is missing from the package.' }
 if (-not (Test-Path -LiteralPath (Join-Path $modernStage 'CryptoProCleanupResume.exe'))) { throw 'Native resume helper is missing from the package.' }
-Copy-Item -LiteralPath (Join-Path $projectRoot 'build\Win32\Release\CryptoProCleanupLegacy.exe') -Destination $legacyStage
+if (-not $ModernOnly) { Copy-Item -LiteralPath (Join-Path $projectRoot 'build\Win32\Release\CryptoProCleanupLegacy.exe') -Destination $legacyStage }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.en.md') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination $packageRoot
@@ -66,15 +68,18 @@ if (Test-Path -LiteralPath $modernZip) { Remove-Item -LiteralPath $modernZip -Fo
 Compress-Archive -Path (Join-Path $modernStage '*') -DestinationPath $modernZip -CompressionLevel Optimal
 
 $legacyExe = Join-Path $distRoot "CryptoProCleanup-Legacy-x86-$Version.exe"
-if (Test-Path -LiteralPath $legacyExe) { Remove-Item -LiteralPath $legacyExe -Force }
-Copy-Item -LiteralPath (Join-Path $legacyStage 'CryptoProCleanupLegacy.exe') -Destination $legacyExe
+if (-not $ModernOnly) {
+    if (Test-Path -LiteralPath $legacyExe) { Remove-Item -LiteralPath $legacyExe -Force }
+    Copy-Item -LiteralPath (Join-Path $legacyStage 'CryptoProCleanupLegacy.exe') -Destination $legacyExe
+}
 
 $publicSourceZip = Join-Path $distRoot "CryptoProCleanup-$Version-source.zip"
 if (Test-Path -LiteralPath $publicSourceZip) { Remove-Item -LiteralPath $publicSourceZip -Force }
 Copy-Item -LiteralPath $sourceZip -Destination $publicSourceZip
 
 $publicSums = Join-Path $distRoot "SHA256SUMS-$Version.txt"
-$releaseAssets = @($releaseZip, $modernZip, $legacyExe, $publicSourceZip)
+$releaseAssets = @($releaseZip, $modernZip, $publicSourceZip)
+if (-not $ModernOnly) { $releaseAssets += $legacyExe }
 $releaseHashLines = $releaseAssets | Sort-Object | ForEach-Object {
     $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $([IO.Path]::GetFileName($_))"

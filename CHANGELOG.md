@@ -2,7 +2,21 @@
 
 All notable project changes are documented here. The project follows semantic versioning after the first generally available release.
 
-## [0.6.0-preview1] - Unreleased
+## [0.7.0] - 2026-10-19
+
+### Changed
+
+- Redesigned Modern around three task cards: back up data, remove applications, and recover data from another drive.
+- Moved product selection and removal preparation into a dedicated navigation destination; Home no longer mixes backup with deletion controls.
+- Added immediate license access on Home, a system inventory area, and persistent text labels for the seven navigation destinations.
+- Introduced graphite/cyan theme surfaces, a vector hero, responsive task cards, and pointer/keyboard states using WinUI 3.
+- Kept the shared detection, backup, certificate, removal, and resume engine. Legacy layouts remain unchanged.
+- Packaging can now build Modern only and reuse an already verified build.
+- Kept certificate export visible in a fixed action bar and corrected the minimum-window bounds so the footer and compact navigation remain inside a 900×650 window.
+- Added SelectionChanged handling for programmatic and keyboard navigation, following the NavigationView contract.
+- Reused Legacy's native folder picker in a shared module for all Modern directory selections, avoiding WinRT StorageFolder conversion failures.
+
+## [0.6.0-preview1] - 2026-09-11
 
 ### Changed
 

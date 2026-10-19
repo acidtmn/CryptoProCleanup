@@ -1,5 +1,6 @@
 #include "cleanup.hpp"
 #include "resource.h"
+#include "folder_picker.hpp"
 
 #include <commctrl.h>
 #include <shellapi.h>
@@ -2001,30 +2002,8 @@ bool TypedConfirm(AppState& state, const std::wstring& phrase, const std::wstrin
 
 std::wstring BrowseForFolder(HWND owner, const std::wstring& current,
                              const std::wstring& title = {}) {
-    IFileOpenDialog* dialog = nullptr;
-    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog))) || !dialog) return {};
-    DWORD options = 0;
-    dialog->GetOptions(&options);
-    dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
-    if (!title.empty()) dialog->SetTitle(title.c_str());
-    if (!current.empty()) {
-        IShellItem* folder = nullptr;
-        if (SUCCEEDED(SHCreateItemFromParsingName(current.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&folder))) && folder) {
-            dialog->SetFolder(folder);
-            folder->Release();
-        }
-    }
     std::wstring result;
-    if (SUCCEEDED(dialog->Show(owner))) {
-        IShellItem* item = nullptr;
-        if (SUCCEEDED(dialog->GetResult(&item)) && item) {
-            PWSTR raw = nullptr;
-            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &raw)) && raw) result = raw;
-            CoTaskMemFree(raw);
-            item->Release();
-        }
-    }
-    dialog->Release();
+    cpc::SelectDirectory(owner, current, title, &result);
     return result;
 }
 

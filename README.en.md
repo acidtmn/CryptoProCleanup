@@ -1,15 +1,15 @@
 # CryptoPro Cleanup Utility
 
-> **Local 0.6.0-preview1 — awaiting author testing, not published.** Modern now has explicit home actions, data-only backup without removal, and a persistent next-step guide. [Local testing guide (RU)](docs/LOCAL_PREVIEW_0.6.0.md) · [Checks and limitations (RU)](docs/AUDIT_0.6.0.md).
+> **Modern 0.7.0 for Windows 10/11 x64 - local build.** A new task-based home page, separate removal workspace, and refreshed design. [Launch and changes (RU)](docs/LOCAL_0.7.0.md).
 
-The description below documents the published version; download links point to the public releases.
+GitHub download links point to published versions. The local 0.7.0 build is in `dist`. Windows 7 users can continue using the separate Legacy edition.
 
 [![Windows build](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml/badge.svg)](https://github.com/acidtmn/CryptoProCleanup/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/acidtmn/CryptoProCleanup?include_prereleases)](https://github.com/acidtmn/CryptoProCleanup/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Windows 7–11](https://img.shields.io/badge/Windows-7%20SP1%E2%80%9311-0078D6.svg)](#system-requirements)
 
-> **Status: public 0.5.3-rc1 release candidate, not a stable release.** A user previously completed full removal on a live Windows 10 x64 system. Product detection, the complete license, and public-certificate export are confirmed on a real connected Windows 7 x86 disk. The complete Windows/CSP VM matrix remains required before a stable release.
+> A user previously tested full removal on Windows 10 x64, and detection, full-license recovery, and public-certificate export on a connected Windows 7 x86 disk. Those results apply to earlier versions; the new shell is checked separately.
 
 An unofficial portable utility for backing up license identifiers and public certificates, controlled removal of installed CryptoPro products, and rescue from a disconnected Windows 7 SP1 through Windows 11 installation.
 

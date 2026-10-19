@@ -9,15 +9,17 @@
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0B1020"/>
-                    <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="#0E1426"/>
-                    <SolidColorBrush x:Key="SurfaceBrush" Color="#11182B"/>
-                    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#172036"/>
-                    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#202B45"/>
-                    <SolidColorBrush x:Key="SurfacePressedBrush" Color="#293651"/>
-                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#202D52"/>
+                    <Color x:Key="HeroStartColor">#162D40</Color>
+                    <Color x:Key="HeroEndColor">#101C2D</Color>
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#090F1B"/>
+                    <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="#0C1422"/>
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="#111D30"/>
+                    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#16263C"/>
+                    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#1D324A"/>
+                    <SolidColorBrush x:Key="SurfacePressedBrush" Color="#253D57"/>
+                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#18394B"/>
                     <SolidColorBrush x:Key="SurfaceDisabledBrush" Color="#111827"/>
-                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#26334E"/>
+                    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#26394E"/>
                     <SolidColorBrush x:Key="StrongBorderBrush" Color="#435273"/>
                     <SolidColorBrush x:Key="DividerBrush" Color="#222D43"/>
                     <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F6F8FF"/>
@@ -25,11 +27,11 @@
                     <SolidColorBrush x:Key="TertiaryTextBrush" Color="#78859F"/>
                     <SolidColorBrush x:Key="DisabledTextBrush" Color="#58637A"/>
                     <SolidColorBrush x:Key="InverseTextBrush" Color="#071126"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#7AA7FF"/>
-                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#A2C2FF"/>
-                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#5C8EEB"/>
-                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#182F55"/>
-                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#365F9D"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#66D8E8"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#98E7F1"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#3BBBCF"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#113743"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#2D687C"/>
                     <SolidColorBrush x:Key="SuccessBrush" Color="#45D19A"/>
                     <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#123A31"/>
                     <SolidColorBrush x:Key="SuccessBorderBrush" Color="#25755C"/>
@@ -41,15 +43,15 @@
                     <SolidColorBrush x:Key="DangerPressedBrush" Color="#DB586C"/>
                     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#421F2B"/>
                     <SolidColorBrush x:Key="DangerBorderBrush" Color="#8B3E50"/>
-                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#2864D7"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#087992"/>
                     <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#3575ED"/>
-                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#2052B3"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#0B8CA7"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#08677D"/>
                     <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#36415B"/>
-                    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#172036"/>
+                    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#16263C"/>
                     <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#F6F8FF"/>
-                    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="#202B45"/>
-                    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="#293651"/>
+                    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="#1D324A"/>
+                    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="#253D57"/>
                     <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0E1527"/>
                     <SolidColorBrush x:Key="InputForegroundBrush" Color="#F6F8FF"/>
                     <SolidColorBrush x:Key="InputBorderBrush" Color="#35425E"/>
@@ -62,10 +64,10 @@
                     <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#FFD47A"/>
                     <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#421F2B"/>
                     <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#FF9AAA"/>
-                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#7AA7FF"/>
-                    <SolidColorBrush x:Key="FocusBrush" Color="#A2C2FF"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#66D8E8"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#98E7F1"/>
                     <SolidColorBrush x:Key="OverlayBrush" Color="#B3000000"/>
-                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#172036"/>
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#16263C"/>
                     <SolidColorBrush x:Key="DialogForegroundBrush" Color="#F6F8FF"/>
                     <StaticResource x:Key="NavigationViewItemBackground" ResourceKey="NavigationBackgroundBrush"/>
                     <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="SurfaceHoverBrush"/>
@@ -94,13 +96,15 @@
                 </ResourceDictionary>
 
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F4F6FA"/>
+                    <Color x:Key="HeroStartColor">#E5F4F7</Color>
+                    <Color x:Key="HeroEndColor">#FFFFFF</Color>
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F2F6F8"/>
                     <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#EEF2F8"/>
                     <SolidColorBrush x:Key="SurfacePressedBrush" Color="#E2E8F1"/>
-                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#E7EDFF"/>
+                    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="#E1F2F5"/>
                     <SolidColorBrush x:Key="SurfaceDisabledBrush" Color="#ECEFF4"/>
                     <SolidColorBrush x:Key="SubtleBorderBrush" Color="#D9DEE8"/>
                     <SolidColorBrush x:Key="StrongBorderBrush" Color="#AEB8C9"/>
@@ -110,11 +114,11 @@
                     <SolidColorBrush x:Key="TertiaryTextBrush" Color="#768298"/>
                     <SolidColorBrush x:Key="DisabledTextBrush" Color="#9AA3B2"/>
                     <SolidColorBrush x:Key="InverseTextBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#245FCB"/>
-                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#194FAF"/>
-                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#17448D"/>
-                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E7EFFF"/>
-                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#98B5E8"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#096B83"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#07586D"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#064A5C"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E1F3F6"/>
+                    <SolidColorBrush x:Key="AccentBorderBrush" Color="#95C7D0"/>
                     <SolidColorBrush x:Key="SuccessBrush" Color="#147A55"/>
                     <SolidColorBrush x:Key="SuccessSurfaceBrush" Color="#E3F5ED"/>
                     <SolidColorBrush x:Key="SuccessBorderBrush" Color="#77BDA3"/>
@@ -126,10 +130,10 @@
                     <SolidColorBrush x:Key="DangerPressedBrush" Color="#781327"/>
                     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#FDE7EB"/>
                     <SolidColorBrush x:Key="DangerBorderBrush" Color="#DE8796"/>
-                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#245FCB"/>
+                    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#096B83"/>
                     <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#194FAF"/>
-                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#17448D"/>
+                    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#07586D"/>
+                    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#064A5C"/>
                     <SolidColorBrush x:Key="PrimaryButtonDisabledBrush" Color="#BBC5D7"/>
                     <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#172033"/>
@@ -147,8 +151,8 @@
                     <SolidColorBrush x:Key="BadgeWarningForegroundBrush" Color="#724B00"/>
                     <SolidColorBrush x:Key="BadgeDangerBackgroundBrush" Color="#FBE1E6"/>
                     <SolidColorBrush x:Key="BadgeDangerForegroundBrush" Color="#991D33"/>
-                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#245FCB"/>
-                    <SolidColorBrush x:Key="FocusBrush" Color="#17448D"/>
+                    <SolidColorBrush x:Key="SelectionIndicatorBrush" Color="#096B83"/>
+                    <SolidColorBrush x:Key="FocusBrush" Color="#064A5C"/>
                     <SolidColorBrush x:Key="OverlayBrush" Color="#66000000"/>
                     <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#FFFFFF"/>
                     <SolidColorBrush x:Key="DialogForegroundBrush" Color="#172033"/>
@@ -179,6 +183,8 @@
                 </ResourceDictionary>
 
                 <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="HeroStartColor" ResourceKey="SystemColorWindowColor"/>
+                    <StaticResource x:Key="HeroEndColor" ResourceKey="SystemColorWindowColor"/>
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="NavigationBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="SurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
@@ -307,11 +313,61 @@
                 <Setter Property="Background" Value="{ThemeResource SurfaceBrush}"/>
                 <Setter Property="BorderBrush" Value="{ThemeResource SubtleBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="16"/>
+                <Setter Property="CornerRadius" Value="20"/>
             </Style>
             <Style x:Key="ContentCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
                 <Setter Property="Padding" Value="{StaticResource CardPadding}"/>
             </Style>
+
+            <Style x:Key="HeroCardStyle" TargetType="Border" BasedOn="{StaticResource ContentCardStyle}">
+                <Setter Property="Padding" Value="28,20"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource AccentBorderBrush}"/>
+                <Setter Property="Background">
+                    <Setter.Value>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="{ThemeResource HeroStartColor}" Offset="0"/>
+                            <GradientStop Color="{ThemeResource HeroEndColor}" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="TaskCardButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource SurfaceBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource PrimaryTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource SubtleBorderBrush}"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="TaskChrome" Padding="22" CornerRadius="20" BorderThickness="1"
+                                    Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver"><VisualState.Setters>
+                                            <Setter Target="TaskChrome.Background" Value="{ThemeResource SurfaceHoverBrush}"/>
+                                            <Setter Target="TaskChrome.BorderBrush" Value="{ThemeResource AccentBrush}"/>
+                                        </VisualState.Setters></VisualState>
+                                        <VisualState x:Name="Pressed"><VisualState.Setters>
+                                            <Setter Target="TaskChrome.Background" Value="{ThemeResource SurfacePressedBrush}"/>
+                                            <Setter Target="TaskChrome.BorderBrush" Value="{ThemeResource AccentBrush}"/>
+                                        </VisualState.Setters></VisualState>
+                                        <VisualState x:Name="Disabled"><VisualState.Setters>
+                                            <Setter Target="TaskChrome.Opacity" Value="0.45"/>
+                                        </VisualState.Setters></VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="CompactContentCardStyle" TargetType="Border" BasedOn="{StaticResource CardChromeStyle}">
                 <Setter Property="Padding" Value="{StaticResource CompactCardPadding}"/>
             </Style>

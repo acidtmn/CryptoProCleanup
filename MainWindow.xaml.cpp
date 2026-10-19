@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "src/folder_picker.hpp"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -13,7 +14,6 @@ namespace winrt
 {
     using namespace Windows::ApplicationModel::DataTransfer;
     using namespace Windows::Foundation;
-    using namespace Windows::Storage::Pickers;
     using namespace Microsoft::UI::Xaml;
     using namespace Microsoft::UI::Xaml::Controls;
     using namespace Microsoft::UI::Xaml::Media;
@@ -271,7 +271,8 @@ namespace winrt::CryptoProCleanupModern::implementation
             }
         });
         ApplyAdaptiveLayout(WindowRoot().ActualWidth());
-        if (currentPage_ == L"certificates") Navigation().SelectedItem(NavCertificates());
+        if (currentPage_ == L"cleanup") Navigation().SelectedItem(NavCleanup());
+        else if (currentPage_ == L"certificates") Navigation().SelectedItem(NavCertificates());
         else if (currentPage_ == L"offline") Navigation().SelectedItem(NavOffline());
         else if (currentPage_ == L"reports") Navigation().SelectedItem(NavReports());
         else if (currentPage_ == L"settings") Navigation().SelectedItem(NavSettings());
@@ -361,7 +362,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         if (rememberWindow_)
         {
             const std::wstring page = ReadSettingString(L"LastPage");
-            if (page == L"overview" || page == L"certificates" || page == L"offline" ||
+            if (page == L"overview" || page == L"cleanup" || page == L"certificates" || page == L"offline" ||
                 page == L"reports" || page == L"settings" || page == L"about") currentPage_ = page;
             DWORD left = 0, top = 0, right = 0, bottom = 0;
             if (ReadSettingDword(L"WindowLeft", &left) && ReadSettingDword(L"WindowTop", &top) &&
@@ -498,6 +499,7 @@ namespace winrt::CryptoProCleanupModern::implementation
             button.BorderBrush(active ? selected : clear);
         };
         apply(CompactOverview(), currentPage_ == L"overview");
+        apply(CompactCleanup(), currentPage_ == L"cleanup");
         apply(CompactCertificates(), currentPage_ == L"certificates");
         apply(CompactOffline(), currentPage_ == L"offline");
         apply(CompactReports(), currentPage_ == L"reports");
@@ -523,19 +525,22 @@ namespace winrt::CryptoProCleanupModern::implementation
     void MainWindow::WindowRoot_SizeChanged(IInspectable const&, SizeChangedEventArgs const& args)
     {
         if (!uiReady_) return;
-        if (!enforcingMinimumSize_ && (args.NewSize().Width < 900 || args.NewSize().Height < 650))
+        if (!enforcingMinimumSize_)
         {
-            enforcingMinimumSize_ = true;
             RECT rectangle{};
             GetWindowRect(GetWindowHandle(), &rectangle);
             const UINT dpi = GetDpiForWindow(GetWindowHandle());
-            SetWindowPos(GetWindowHandle(), nullptr, 0, 0,
-                std::max<LONG>(rectangle.right - rectangle.left,
-                               static_cast<LONG>(MulDiv(900, static_cast<int>(dpi), 96))),
-                std::max<LONG>(rectangle.bottom - rectangle.top,
-                               static_cast<LONG>(MulDiv(650, static_cast<int>(dpi), 96))),
-                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-            enforcingMinimumSize_ = false;
+            const LONG minimumWidth = MulDiv(900, static_cast<int>(dpi), 96);
+            const LONG minimumHeight = MulDiv(650, static_cast<int>(dpi), 96);
+            if (rectangle.right - rectangle.left < minimumWidth || rectangle.bottom - rectangle.top < minimumHeight)
+            {
+                enforcingMinimumSize_ = true;
+                SetWindowPos(GetWindowHandle(), nullptr, 0, 0,
+                    std::max<LONG>(rectangle.right - rectangle.left, minimumWidth),
+                    std::max<LONG>(rectangle.bottom - rectangle.top, minimumHeight),
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+                enforcingMinimumSize_ = false;
+            }
         }
         ApplyAdaptiveLayout(args.NewSize().Width);
     }
@@ -560,6 +565,18 @@ namespace winrt::CryptoProCleanupModern::implementation
         {
             grid.ColumnDefinitions().GetAt(index).Width(GridLength{value, unit});
         };
+
+        const bool stackTasks = contentWidth < 750;
+        for (uint32_t index = 0; index < 3; ++index)
+            setColumn(HomeTasksGrid(), index, index == 0 || !stackTasks ? 1.0 : 0.0,
+                      index == 0 || !stackTasks ? GridUnitType::Star : GridUnitType::Pixel);
+        Grid::SetColumn(GoCleanupButton(), stackTasks ? 0 : 1);
+        Grid::SetRow(GoCleanupButton(), stackTasks ? 1 : 0);
+        Grid::SetColumn(GoOfflineButton(), stackTasks ? 0 : 2);
+        Grid::SetRow(GoOfflineButton(), stackTasks ? 2 : 0);
+        HeroArtwork().Visibility(contentWidth < 820 ? Visibility::Collapsed : Visibility::Visible);
+        const auto heroGrid = HomeHero().Child().as<Grid>();
+        setColumn(heroGrid, 1, contentWidth < 820 ? 0.0 : 180.0, GridUnitType::Pixel);
 
         const bool stackHeader = contentWidth < 900;
         Grid::SetColumn(HeaderActions(), stackHeader ? 0 : 1);
@@ -669,6 +686,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         if (!button || !button.Tag()) return;
         const std::wstring page = unbox_value<hstring>(button.Tag()).c_str();
         if (page == L"overview") Navigation().SelectedItem(NavOverview());
+        else if (page == L"cleanup") Navigation().SelectedItem(NavCleanup());
         else if (page == L"certificates") Navigation().SelectedItem(NavCertificates());
         else if (page == L"offline") Navigation().SelectedItem(NavOffline());
         else if (page == L"reports") Navigation().SelectedItem(NavReports());
@@ -678,21 +696,32 @@ namespace winrt::CryptoProCleanupModern::implementation
         NavigateTo(page);
     }
 
+    void MainWindow::Navigation_SelectionChanged(NavigationView const&, NavigationViewSelectionChangedEventArgs const& args)
+    {
+        if (!uiReady_) return;
+        const auto item = args.SelectedItem().try_as<NavigationViewItem>();
+        if (!item || !item.Tag()) return;
+        const std::wstring page = unbox_value<hstring>(item.Tag()).c_str();
+        if (page != currentPage_) NavigateTo(page);
+    }
+
     void MainWindow::NavigateTo(std::wstring const& page)
     {
         currentPage_ = page;
         const auto visible = Visibility::Visible;
         const auto collapsed = Visibility::Collapsed;
-        OverviewPage().Visibility(page == L"overview" ? visible : collapsed);
+        HomePage().Visibility(page == L"overview" ? visible : collapsed);
+        OverviewPage().Visibility(page == L"cleanup" ? visible : collapsed);
         CertificatesPage().Visibility(page == L"certificates" ? visible : collapsed);
         OfflinePage().Visibility(page == L"offline" ? visible : collapsed);
         ReportsPage().Visibility(page == L"reports" ? visible : collapsed);
         SettingsPage().Visibility(page == L"settings" ? visible : collapsed);
         AboutPage().Visibility(page == L"about" ? visible : collapsed);
-        RescanButton().Visibility(page == L"overview" || page == L"certificates" ? visible : collapsed);
+        RescanButton().Visibility(page == L"overview" || page == L"cleanup" || page == L"certificates" ? visible : collapsed);
         RefreshCompactNavigationVisuals();
         UpdatePageHeader();
-        NextStepBar().Visibility(page == L"overview" ? visible : collapsed);
+        NextStepBar().Visibility(page == L"cleanup" ? visible : collapsed);
+        CertificateExportBar().Visibility(page == L"certificates" ? visible : collapsed);
         if (page == L"reports") UpdateReportsPage();
     }
 
@@ -700,10 +729,17 @@ namespace winrt::CryptoProCleanupModern::implementation
     {
         if (currentPage_ == L"overview")
         {
-            PageEyebrow().Text(T(L"РАБОТАЮЩАЯ СИСТЕМА · БЕЗОПАСНОЕ СКАНИРОВАНИЕ", L"LIVE SYSTEM · SAFE SCAN"));
-            PageTitle().Text(T(L"Ваш CryptoPro", L"Your CryptoPro"));
-            PageSubtitle().Text(T(L"Сохраните важные данные или подготовьте удаление программ с этого компьютера.",
-                                  L"Save important data or prepare to remove applications from this computer."));
+            PageEyebrow().Text(L"CRYPTOPRO / WORKSPACE");
+            PageTitle().Text(T(L"Главная", L"Home"));
+            PageSubtitle().Text(T(L"Твои данные. Твой компьютер. Всё под контролем.",
+                                  L"Your data. Your computer. Everything in control."));
+        }
+        else if (currentPage_ == L"cleanup")
+        {
+            PageEyebrow().Text(T(L"ЭТОТ КОМПЬЮТЕР / УДАЛЕНИЕ", L"THIS COMPUTER / REMOVAL"));
+            PageTitle().Text(T(L"Удаление программ", L"Remove applications"));
+            PageSubtitle().Text(T(L"Выбери программы и папку копии. Затем проверь состав удаления.",
+                                  L"Choose applications and a backup folder, then review the removal."));
         }
         else if (currentPage_ == L"certificates")
         {
@@ -715,7 +751,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         else if (currentPage_ == L"offline")
         {
             PageEyebrow().Text(T(L"ОТКЛЮЧЁННАЯ WINDOWS · СНАЧАЛА ТОЛЬКО ЧТЕНИЕ", L"OFFLINE WINDOWS · READ-ONLY FIRST"));
-            PageTitle().Text(T(L"Офлайн-Windows", L"Offline Windows"));
+            PageTitle().Text(T(L"Другой диск", L"Another drive"));
             PageSubtitle().Text(T(L"Можно выбрать корень подключённого диска или находящуюся на нём папку Windows.",
                                   L"Select either the attached drive root or its Windows directory."));
         }
@@ -750,6 +786,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         Title(T(L"КриптоПро Очистка ", L"CryptoPro Cleanup Utility ") + std::wstring(cpc::kVersion));
         BrandTitle().Text(T(L"КриптоПро\nОчистка", L"CryptoPro\nCleanup"));
         NavOverview().Content(box_value(T(L"Главная", L"Home")));
+        NavCleanup().Content(box_value(T(L"Удаление программ", L"Remove applications")));
         NavCertificates().Content(box_value(T(L"Открытые сертификаты", L"Public certificates")));
         NavOffline().Content(box_value(T(L"Другой диск", L"Another drive")));
         NavReports().Content(box_value(T(L"Журнал и отчёты", L"Log and reports")));
@@ -896,21 +933,40 @@ namespace winrt::CryptoProCleanupModern::implementation
         AboutSupportButton().Content(box_value(T(L"Поддержать проект", L"Support the project")));
         UpdateAboutSecurityState();
         using Microsoft::UI::Xaml::Automation::AutomationProperties;
-        AutomationProperties::SetName(CompactOverview(), T(L"Обзор", L"Overview"));
+        AutomationProperties::SetName(CompactOverview(), T(L"Главная", L"Home"));
+        AutomationProperties::SetName(CompactCleanup(), T(L"Удаление программ", L"Remove applications"));
         AutomationProperties::SetName(CompactCertificates(), T(L"Открытые сертификаты", L"Public certificates"));
         AutomationProperties::SetName(CompactOffline(), T(L"Офлайн-Windows", L"Offline Windows"));
         AutomationProperties::SetName(CompactReports(), T(L"Журнал и отчёты", L"Log and reports"));
         AutomationProperties::SetName(CompactSettings(), T(L"Настройки", L"Settings"));
         AutomationProperties::SetName(CompactAbout(), T(L"О программе", L"About"));
-        StartTitle().Text(T(L"Что вы хотите сделать?", L"What would you like to do?"));
-        StartHint().Text(T(L"Для переустановки сначала сохраните данные. Для удаления выберите программы ниже.",
-                          L"Save your data before reinstalling. To remove applications, select them below."));
+        HeroEyebrow().Text(T(L"ЛОКАЛЬНО · ПОД ТВОИМ КОНТРОЛЕМ", L"LOCAL · IN YOUR CONTROL"));
+        StartTitle().Text(T(L"Новый старт для CryptoPro.", L"A fresh start for CryptoPro."));
+        StartHint().Text(T(L"Сохрани важное. Удали лишнее. Всё в одном месте.",
+                          L"Keep what matters. Remove what you no longer need."));
+        HomeTasksTitle().Text(T(L"Что нужно сделать?", L"What would you like to do?"));
+        HomeLicensesText().Text(T(L"Посмотреть лицензии", L"View licenses"));
+        HomeInventoryTitle().Text(T(L"Найдено на этом компьютере", L"Found on this computer"));
+        HomeFooterHint().Text(T(L"Копия сертификата содержит открытую часть. Для подписи также нужен закрытый ключ.",
+                               L"A certificate backup contains its public part. Signing also requires the private key."));
         SaveDataText().Text(T(L"Сохранить данные", L"Back up data"));
-        SaveDataHint().Text(T(L"Копия включает полные лицензии, выбранные открытые сертификаты и отчёт. Удаление не запускается.",
-                             L"Includes full licenses, selected public certificates, and a report. Does not start removal."));
-        GoCertificatesText().Text(T(L"Выбрать сертификаты", L"Choose certificates"));
-        GoOfflineText().Text(T(L"Данные с другого диска", L"Data from another drive"));
+        SaveDataHint().Text(T(L"Лицензии и открытые сертификаты перед переустановкой.",
+                             L"Save licenses and public certificates before reinstalling."));
+        SaveDataAction().Text(T(L"Создать копию", L"Create backup"));
+        GoCleanupText().Text(T(L"Удалить программы", L"Remove applications"));
+        GoCleanupHint().Text(T(L"Продукты CryptoPro и проверенные остатки после удаления.",
+                              L"Remove CryptoPro products and their verified remnants."));
+        GoCleanupAction().Text(T(L"Выбрать программы", L"Choose applications"));
+        GoCertificatesText().Text(T(L"Открыть сертификаты", L"Open certificates"));
+        GoOfflineText().Text(T(L"Другой диск", L"Another drive"));
+        GoOfflineHint().Text(T(L"Извлеки данные из Windows на подключённом накопителе.",
+                              L"Recover data from Windows on an attached drive."));
+        GoOfflineAction().Text(T(L"Выбрать диск", L"Choose drive"));
+        AutomationProperties::SetName(SaveDataButton(), SaveDataText().Text());
+        AutomationProperties::SetName(GoCleanupButton(), GoCleanupText().Text());
+        AutomationProperties::SetName(GoOfflineButton(), GoOfflineText().Text());
         CompactOverviewText().Text(T(L"Главная", L"Home"));
+        CompactCleanupText().Text(T(L"Удаление", L"Removal"));
         CompactCertificatesText().Text(T(L"Сертификаты", L"Certificates"));
         CompactOfflineText().Text(T(L"Другой диск", L"Other drive"));
         CompactReportsText().Text(T(L"Отчёты", L"Reports"));
@@ -1130,6 +1186,8 @@ namespace winrt::CryptoProCleanupModern::implementation
             [](cpc::InstalledProduct const& product) { return product.selected; }));
 
         SaveDataButton().IsEnabled(idle && (!scan_.licenses.empty() || !scan_.certificates.empty() || !scan_.products.empty()));
+        HomeLicensesButton().IsEnabled(idle && !scan_.licenses.empty());
+        GoCleanupButton().IsEnabled(navigationAllowed);
         GoCertificatesButton().IsEnabled(navigationAllowed);
         GoOfflineButton().IsEnabled(navigationAllowed);
         const bool backupReady = backupValidation_.ok() &&
@@ -1217,7 +1275,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         WebsiteLink().IsEnabled(idle);
         SupportLink().IsEnabled(idle);
         Navigation().IsEnabled(navigationAllowed);
-        for (auto const& button : {CompactOverview(), CompactCertificates(), CompactOffline(), CompactReports(),
+        for (auto const& button : {CompactOverview(), CompactCleanup(), CompactCertificates(), CompactOffline(), CompactReports(),
                                   CompactSettings(), CompactAbout()})
             button.IsEnabled(navigationAllowed);
     }
@@ -1532,17 +1590,13 @@ namespace winrt::CryptoProCleanupModern::implementation
         {
             const auto source = scan_;
             const auto language = language_;
-            FolderPicker picker;
-            picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
-            picker.FileTypeFilter().Append(L"*");
-            check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-            auto folder = co_await picker.PickSingleFolderAsync();
-            if (!folder)
+            const auto folder = PickDirectory();
+            if (folder.empty())
             {
                 EndOperation(token, T(L"Сохранение отменено.", L"Backup cancelled."), UiStatusKind::Cancelled);
                 co_return;
             }
-            const std::wstring parent = folder.Path().c_str();
+            const std::wstring parent = folder.c_str();
             std::wstring licensePath, reportPath, logPath, error;
             bool saved = false;
             std::exception_ptr failure;
@@ -2108,15 +2162,28 @@ namespace winrt::CryptoProCleanupModern::implementation
         SelectedCertThumbprint().Text(L"SHA-1: " + certificate.thumbprint);
     }
 
-    winrt::Windows::Foundation::IAsyncAction MainWindow::PickFolder(std::function<void(std::wstring const&)> completed)
+    std::wstring MainWindow::PickDirectory()
     {
-        auto lifetime = get_strong();
-        FolderPicker picker;
-        picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
-        picker.FileTypeFilter().Append(L"*");
-        check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-        auto folder = co_await picker.PickSingleFolderAsync();
-        if (folder) completed(folder.Path().c_str());
+        if (modalOpen_) return {};
+        modalOpen_ = true;
+        try
+        {
+            PWSTR documents = nullptr;
+            std::wstring initial;
+            if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &documents)))
+            {
+                initial = documents;
+                CoTaskMemFree(documents);
+            }
+            std::wstring selected;
+            const HRESULT result = cpc::SelectDirectory(GetWindowHandle(), initial,
+                T(L"Выбор папки", L"Choose a folder"), &selected);
+            modalOpen_ = false;
+            if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return {};
+            check_hresult(result);
+            return selected;
+        }
+        catch (...) { modalOpen_ = false; throw; }
     }
 
     winrt::fire_and_forget MainWindow::ChooseBackup_Click(IInspectable const&, RoutedEventArgs const&)
@@ -2125,12 +2192,11 @@ namespace winrt::CryptoProCleanupModern::implementation
         if (modalOpen_) co_return;
         try
         {
-            co_await PickFolder([weak = get_weak()](std::wstring const& path)
-            {
-                if (auto self = weak.get()) self->BackupPath().Text(path);
-            });
+            const auto path = PickDirectory();
+            if (!path.empty()) BackupPath().Text(path);
         }
         catch (...) { ReportAsyncFailure(T(L"Выбор папки резервной копии", L"Choosing the backup folder"), std::current_exception()); }
+        co_return;
     }
 
     winrt::fire_and_forget MainWindow::ExportCertificates_Click(IInspectable const&, RoutedEventArgs const&)
@@ -2146,12 +2212,8 @@ namespace winrt::CryptoProCleanupModern::implementation
         }
         try
         {
-        FolderPicker picker;
-        picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
-        picker.FileTypeFilter().Append(L"*");
-        check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-        auto folder = co_await picker.PickSingleFolderAsync();
-        if (!folder) co_return;
+        const auto folder = PickDirectory();
+        if (folder.empty()) co_return;
         token = BeginOperation(cpc::UiOperation::ExportingCertificates,
             T(L"Экспорт открытых сертификатов…", L"Exporting public certificates…"));
         if (!token) co_return;
@@ -2162,7 +2224,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         apartment_context uiThread;
         const auto certificates = scan_.certificates;
         const auto language = language_;
-        const std::wstring parent = folder.Path().c_str();
+        const std::wstring parent = folder.c_str();
         co_await resume_background();
         try { exported = cpc::ExportPublicCertificates(language, certificates, parent, &exportFolder, &error); }
         catch (...) { failure = std::current_exception(); }
@@ -2300,14 +2362,11 @@ namespace winrt::CryptoProCleanupModern::implementation
         if (!operationGate_.idle()) co_return;
         try
         {
-        FolderPicker picker;
-        picker.SuggestedStartLocation(PickerLocationId::ComputerFolder);
-        picker.FileTypeFilter().Append(L"*");
-        check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-        auto folder = co_await picker.PickSingleFolderAsync();
-        if (folder) OfflinePath().Text(folder.Path());
+        const auto folder = PickDirectory();
+        if (!folder.empty()) OfflinePath().Text(folder);
         }
         catch (...) { ReportAsyncFailure(T(L"Выбор офлайн-Windows", L"Choosing offline Windows"), std::current_exception()); }
+        co_return;
     }
 
     void MainWindow::ScanOffline_Click(IInspectable const&, RoutedEventArgs const&)
@@ -3266,13 +3325,9 @@ namespace winrt::CryptoProCleanupModern::implementation
         cpc::UiOperationToken token;
         try
         {
-        FolderPicker picker;
-        picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
-        picker.FileTypeFilter().Append(L"*");
-        check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-        auto folder = co_await picker.PickSingleFolderAsync();
-        if (!folder) co_return;
-        const std::wstring selectedBackupPath = folder.Path().c_str();
+        const auto folder = PickDirectory();
+        if (folder.empty()) co_return;
+        const std::wstring selectedBackupPath = folder.c_str();
         apartment_context validationUiThread;
         cpc::BackupFolderValidation backupValidation;
         co_await resume_background();
@@ -3290,7 +3345,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         apartment_context uiThread;
         auto offline = std::make_shared<cpc::OfflineScanResult>(offline_);
         const auto language = language_;
-        const std::wstring parent = folder.Path().c_str();
+        const std::wstring parent = folder.c_str();
         co_await resume_background();
         std::wstring session;
         std::wstring error;
@@ -3340,13 +3395,9 @@ namespace winrt::CryptoProCleanupModern::implementation
                 co_return;
             }
 
-            FolderPicker picker;
-            picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
-            picker.FileTypeFilter().Append(L"*");
-            check_hresult(picker.as<IInitializeWithWindow>()->Initialize(GetWindowHandle()));
-            auto folder = co_await picker.PickSingleFolderAsync();
-            if (!folder) co_return;
-            const std::wstring selectedBackupPath = folder.Path().c_str();
+            const auto folder = PickDirectory();
+            if (folder.empty()) co_return;
+            const std::wstring selectedBackupPath = folder.c_str();
             const std::wstring selectedOfflineSource = offline_.windowsDirectory;
             apartment_context validationUiThread;
             cpc::BackupFolderValidation backupValidation;
@@ -3356,7 +3407,7 @@ namespace winrt::CryptoProCleanupModern::implementation
             requiredBackupBytes = cpc::EstimateOfflineBackupMinimum(*offlineForEstimate);
             backupValidation = cpc::ProbeBackupFolder(selectedBackupPath, selectedOfflineSource, requiredBackupBytes);
             co_await validationUiThread;
-            const std::wstring backupVolume = VolumeRootOf(folder.Path().c_str());
+            const std::wstring backupVolume = VolumeRootOf(folder.c_str());
             const std::wstring sourceVolume = VolumeRootOf(offline_.windowsDirectory);
             if (!backupValidation.ok())
             {
@@ -3421,7 +3472,7 @@ namespace winrt::CryptoProCleanupModern::implementation
             auto execution = std::make_shared<cpc::ExecutionResult>();
             auto verification = std::make_shared<cpc::OfflineScanResult>();
             const auto language = language_;
-            const std::wstring parent = folder.Path().c_str();
+            const std::wstring parent = folder.c_str();
             std::wstring session, error;
             bool backupSaved = false;
             bool resultWritten = false;

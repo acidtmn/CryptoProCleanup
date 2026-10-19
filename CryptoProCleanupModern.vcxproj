@@ -105,6 +105,7 @@
     <ClInclude Include="MainWindow.xaml.h"><DependentUpon>MainWindow.xaml</DependentUpon></ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\folder_picker.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="src\core.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="src\certificates.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="src\offline_registry.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>

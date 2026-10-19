@@ -1,7 +1,8 @@
 param(
     [string]$Executable,
     [string]$ArtifactsDirectory,
-    [switch]$NoScreenshots
+    [switch]$NoScreenshots,
+    [switch]$ExerciseBackup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +28,7 @@ if ($settingsExisted) {
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -37,6 +39,11 @@ public static class CpcSmokeNative {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int command);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern IntPtr GetLastActivePopup(IntPtr h);
+    [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr h, int id);
+    [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr h, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassNameW(IntPtr h, System.Text.StringBuilder text, int count);
 }
 '@
 
@@ -55,8 +62,8 @@ function Select-UiItem([System.Windows.Automation.AutomationElement]$Root, [stri
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsEnabledProperty, $true))
     $item = $Root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
     if (-not $item) { return $false }
-    foreach ($pattern in @([System.Windows.Automation.SelectionItemPattern]::Pattern,
-                           [System.Windows.Automation.InvokePattern]::Pattern)) {
+    foreach ($pattern in @([System.Windows.Automation.InvokePattern]::Pattern,
+                           [System.Windows.Automation.SelectionItemPattern]::Pattern)) {
         try {
             $implementation = $item.GetCurrentPattern($pattern)
             if ($pattern -eq [System.Windows.Automation.SelectionItemPattern]::Pattern) { $implementation.Select() }
@@ -69,8 +76,8 @@ function Select-UiItem([System.Windows.Automation.AutomationElement]$Root, [stri
 
 function Activate-UiElement([System.Windows.Automation.AutomationElement]$Element) {
     if (-not $Element -or -not $Element.Current.IsEnabled) { return $false }
-    foreach ($pattern in @([System.Windows.Automation.SelectionItemPattern]::Pattern,
-                           [System.Windows.Automation.InvokePattern]::Pattern)) {
+    foreach ($pattern in @([System.Windows.Automation.InvokePattern]::Pattern,
+                           [System.Windows.Automation.SelectionItemPattern]::Pattern)) {
         try {
             $implementation = $Element.GetCurrentPattern($pattern)
             if ($pattern -eq [System.Windows.Automation.SelectionItemPattern]::Pattern) { $implementation.Select() }
@@ -79,6 +86,19 @@ function Activate-UiElement([System.Windows.Automation.AutomationElement]$Elemen
         } catch {}
     }
     return $false
+}
+
+function Invoke-ModalAction([IntPtr]$Handle, [string]$AutomationId) {
+    Start-Job -ArgumentList $Handle.ToInt64(), $AutomationId -ScriptBlock {
+        param($NativeWindow, $ButtonId)
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]$NativeWindow)
+        $button = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::AutomationIdProperty, $ButtonId))
+        $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
 }
 
 function Select-ComboValue([System.Windows.Automation.AutomationElement]$Combo, [string]$ItemName) {
@@ -260,6 +280,7 @@ function Assert-DarkCompactNavigation([System.Windows.Automation.AutomationEleme
 }
 
 $process = Start-Process -FilePath $Executable -ArgumentList '--lang','ru' -PassThru
+$pickerInvokeJobs = @()
 try {
     if (-not (Wait-Until { $process.Refresh(); $process.MainWindowHandle -ne 0 -and $process.Responding } 45)) {
         throw 'Modern did not expose a responsive main window within 45 seconds.'
@@ -290,6 +311,10 @@ try {
     Start-Sleep -Milliseconds 400
     Assert-DarkCompactNavigation $root $handle
     Save-WindowScreenshot $handle 'settings-1024x760-dark'
+    if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable in Dark theme.' }
+    Start-Sleep -Milliseconds 300
+    Save-WindowScreenshot $handle 'home-1024x760-dark-ru'
+    if (-not (Select-UiItemById $root 'NavSettings')) { throw 'Settings is unavailable.' }
     Select-ComboValue -Combo $themeCombo -ItemName $lightLabel
     Start-Sleep -Milliseconds 400
     Save-WindowScreenshot $handle 'settings-1024x760-light'
@@ -299,11 +324,18 @@ try {
 
     if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable.' }
     Start-Sleep -Milliseconds 300
-    foreach ($id in @('SaveDataButton','GoCertificatesButton','GoOfflineButton','NextStepButton','NextStepTitle')) {
+    foreach ($id in @('SaveDataButton','GoCleanupButton','GoOfflineButton','HomeTasksTitle')) {
         $element = Find-UiElementById $root $id
         if (-not $element -or $element.Current.IsOffscreen) { throw "Guided home action is not visible: $id" }
     }
     Save-WindowScreenshot $handle 'home-1024x760-system-ru'
+    if (-not (Select-UiItemById $root 'NavCleanup')) { throw 'Removal page is unavailable.' }
+    Start-Sleep -Milliseconds 300
+    foreach ($id in @('NextStepButton','NextStepTitle')) {
+        $element = Find-UiElementById $root $id
+        if (-not $element -or $element.Current.IsOffscreen) { throw "Removal next step is not visible: $id" }
+    }
+    Save-WindowScreenshot $handle 'cleanup-1024x760-system-ru'
     if (-not (Select-UiItemById $root 'NavAbout')) {
         throw 'About navigation item is unavailable.'
     }
@@ -336,6 +368,7 @@ try {
 
     $pages = @(
         @{ Name = 'Overview'; Id = 'NavOverview' },
+        @{ Name = 'Removal'; Id = 'NavCleanup' },
         @{ Name = 'Public certificates'; Id = 'NavCertificates' },
         @{ Name = 'Offline Windows'; Id = 'NavOffline' },
         @{ Name = 'Log and reports'; Id = 'NavReports' },
@@ -348,6 +381,7 @@ try {
         Start-Sleep -Milliseconds 250
         if ($pageName -eq 'Public certificates') {
             Assert-UiElementFullyVisible $root 'Deselect filtered'
+            Assert-UiElementFullyVisible $root 'Export selected'
             Assert-UiElementMinimumHeight $root $handle 'Select filtered' 36
             Assert-UiElementMinimumHeight $root $handle 'Deselect filtered' 36
             $checkboxes = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
@@ -411,39 +445,163 @@ try {
         } elseif ($pageName -eq 'Overview') {
             Assert-UiElementFullyVisible $root 'Scan again'
             Assert-UiElementFullyVisible $root 'Back up data'
-            Assert-UiElementFullyVisible $root 'Choose certificates'
-            Assert-UiElementFullyVisible $root 'Data from another drive'
+            Assert-UiElementFullyVisible $root 'Remove applications'
+            Assert-UiElementFullyVisible $root 'Another drive'
+            Save-WindowScreenshot $handle 'home-1280x720-system-en'
+        } elseif ($pageName -eq 'Removal') {
             $next = Find-UiElementById $root 'NextStepTitle'
             if (-not $next -or $next.Current.IsOffscreen -or [string]::IsNullOrWhiteSpace($next.Current.Name)) {
                 throw 'The persistent next-step explanation is missing.'
             }
-            Save-WindowScreenshot $handle 'home-1280x720-system-en'
+            Save-WindowScreenshot $handle 'cleanup-1280x720-system-en'
         }
     }
 
     if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home is unavailable for shortcut checks.' }
     [CpcSmokeNative]::SetForegroundWindow($handle) | Out-Null
     Start-Sleep -Milliseconds 300
-    (Find-UiElementById $root 'OverviewPage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+    (Find-UiElementById $root 'HomePage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 100)
     Start-Sleep -Milliseconds 300
-    (Find-UiElementById $root 'GoCertificatesButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $certificateShortcut = Find-UiElementById $root 'GoCertificatesButton'
+    $certificateShortcut.SetFocus()
+    Start-Sleep -Milliseconds 200
+    $certificateShortcut.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Public certificates' } 5)) {
         Save-WindowScreenshot $handle 'shortcut-diagnostic'
         throw "Certificate shortcut did not navigate: title=$((Find-UiElementById $root 'PageTitle').Current.Name)"
     }
     if (-not (Select-UiItemById $root 'NavOverview')) { throw 'Home did not reopen.' }
     Start-Sleep -Milliseconds 300
-    (Find-UiElementById $root 'OverviewPage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+    (Find-UiElementById $root 'HomePage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
     Start-Sleep -Milliseconds 300
-    (Find-UiElementById $root 'GoOfflineButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Offline Windows' } 5)) {
-        throw 'Another-drive shortcut did not navigate to the offline page.'
+    $offlineShortcut = Find-UiElementById $root 'GoOfflineButton'
+    $offlineShortcut.SetFocus()
+    Start-Sleep -Milliseconds 200
+    $offlineShortcut.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Another drive' } 5)) {
+        Save-WindowScreenshot $handle 'other-drive-shortcut-diagnostic'
+        throw "Another-drive shortcut did not navigate: title=$((Find-UiElementById $root 'PageTitle').Current.Name)"
     }
-    Write-Host "UI smoke passed: launch, responsive resize, Dark/Light/System, all six pages, empty reports, checkbox accessibility, RU/EN, and home shortcuts. Artifacts: $ArtifactsDirectory"
+    Select-UiItemById $root 'NavOverview' | Out-Null
+    Start-Sleep -Milliseconds 300
+    (Find-UiElementById $root 'HomePage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+    (Find-UiElementById $root 'GoCleanupButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Remove applications' } 5)) {
+        throw 'The removal task card did not open the removal page.'
+    }
+    [CpcSmokeNative]::SetWindowPos($handle, [IntPtr]::Zero, 40, 40, 900, 650, 0x0004) | Out-Null
+    Select-UiItemById $root 'NavOverview' | Out-Null
+    Start-Sleep -Milliseconds 400
+    Save-WindowScreenshot $handle 'home-900x650-en'
+    Select-UiItemById $root 'NavCleanup' | Out-Null
+    Start-Sleep -Milliseconds 300
+    $windowBounds = $root.Current.BoundingRectangle
+    foreach ($fixedId in @('CompactAbout','FooterStatus')) {
+        $fixed = Find-UiElementById $root $fixedId
+        if (-not $fixed -or $fixed.Current.IsOffscreen -or $fixed.Current.BoundingRectangle.Bottom -gt $windowBounds.Bottom) {
+            throw "The minimum window clips a fixed element: $fixedId"
+        }
+    }
+    $nextAction = Find-UiElementById $root 'NextStepButton'
+    $nextBounds = $nextAction.Current.BoundingRectangle
+    if ($nextAction.Current.IsOffscreen -or $nextBounds.Bottom -gt $windowBounds.Bottom -or $nextBounds.Right -gt $windowBounds.Right) {
+        Save-WindowScreenshot $handle 'cleanup-900x650-diagnostic'
+        throw 'The fixed removal action is clipped in the minimum window.'
+    }
+    Save-WindowScreenshot $handle 'cleanup-900x650-en'
+    Select-UiItemById $root 'NavCertificates' | Out-Null
+    Start-Sleep -Milliseconds 300
+    Assert-UiElementFullyVisible $root 'Export selected'
+    Save-WindowScreenshot $handle 'certificates-900x650-en'
+    if ($ExerciseBackup) {
+        [CpcSmokeNative]::SetWindowPos($handle, [IntPtr]::Zero, 40, 40, 1280, 800, 0x0004) | Out-Null
+        Select-UiItemById $root 'NavOverview' | Out-Null
+        Start-Sleep -Milliseconds 300
+        (Find-UiElementById $root 'HomePage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+        Start-Sleep -Milliseconds 300
+        $pickerInvokeJobs += Invoke-ModalAction $handle 'SaveDataButton'
+        if (-not (Wait-Until {
+            $popupHandle = [CpcSmokeNative]::GetLastActivePopup($handle)
+            $popupHandle -ne $handle -and $popupHandle -ne [IntPtr]::Zero
+        } 15)) {
+            throw 'The backup picker did not expose its owned window.'
+        }
+        $pickerClass = [Text.StringBuilder]::new(256)
+        [CpcSmokeNative]::GetClassNameW([CpcSmokeNative]::GetLastActivePopup($handle), $pickerClass, 256) | Out-Null
+        if ($pickerClass.ToString() -ne '#32770') { throw 'The owned window is not the expected folder picker.' }
+        Start-Sleep -Milliseconds 500
+        [CpcSmokeNative]::PostMessageW([CpcSmokeNative]::GetLastActivePopup($handle), 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        if (-not (Wait-Until { (Find-UiElementById $root 'SaveDataButton').Current.IsEnabled } 10)) { throw 'The backup picker did not release its operation.' }
+
+        Select-UiItemById $root 'NavCertificates' | Out-Null
+        Start-Sleep -Milliseconds 300
+        (Find-UiElementById $root 'DeselectFilteredCertificatesButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Milliseconds 300
+        $firstCertificate = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.AndCondition]::new(
+                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::CheckBox),
+                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsOffscreenProperty, $false)))
+        if (-not $firstCertificate) { throw 'A public certificate is required for this optional backup scenario.' }
+        $firstCertificate.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+        if (-not (Wait-Until { (Find-UiElementById $root 'CertificateSelectedCount').Current.Name -match '^Selected: 1 ' } 5)) {
+            throw 'The certificate selection was not applied.'
+        }
+        $backupTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('CpcUiBackup-' + [Guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $backupTestRoot | Out-Null
+        Select-UiItemById $root 'NavOverview' | Out-Null
+        Start-Sleep -Milliseconds 300
+        (Find-UiElementById $root 'HomePage').GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, 0)
+        $pickerInvokeJobs += Invoke-ModalAction $handle 'SaveDataButton'
+        if (-not (Wait-Until {
+            $popup = [CpcSmokeNative]::GetLastActivePopup($handle)
+            $popup -ne $handle -and $popup -ne [IntPtr]::Zero -and [CpcSmokeNative]::GetDlgItem($popup, 1152) -ne [IntPtr]::Zero
+        } 15)) { throw 'The backup folder-name input is unavailable.' }
+        $popup = [CpcSmokeNative]::GetLastActivePopup($handle)
+        [CpcSmokeNative]::SetForegroundWindow($popup) | Out-Null
+        Start-Sleep -Milliseconds 300
+        if ([CpcSmokeNative]::GetForegroundWindow() -ne $popup) { throw 'The backup picker is not the active window.' }
+        [System.Windows.Forms.SendKeys]::SendWait('^l')
+        [System.Windows.Forms.SendKeys]::SendWait($backupTestRoot)
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        Start-Sleep -Milliseconds 1000
+        $chooseFolder = [CpcSmokeNative]::GetDlgItem($popup, 1)
+        [CpcSmokeNative]::PostMessageW($chooseFolder, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        if (-not (Wait-Until { @(Get-ChildItem -LiteralPath $backupTestRoot -Recurse -File -Filter 'cleanup.log').Count -eq 1 } 45)) {
+            Save-WindowScreenshot $handle 'backup-save-diagnostic'
+            throw 'The GUI backup did not create its output files.'
+        }
+        foreach ($required in @('licenses.txt','report.json','summary.txt','cleanup.log')) {
+            if (@(Get-ChildItem -LiteralPath $backupTestRoot -Recurse -File -Filter $required).Count -ne 1) {
+                throw "The GUI backup is missing its output: $required"
+            }
+        }
+        if (@(Get-ChildItem -LiteralPath $backupTestRoot -Recurse -File -Filter '*.cer').Count -ne 1) {
+            throw 'The GUI backup did not preserve the one-certificate selection.'
+        }
+        $closeMessage = Find-UiElementById $root 'CloseButton'
+        if ($closeMessage -and $closeMessage.Current.IsEnabled) {
+            $closeMessage.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        }
+        if (-not (Wait-Until { (Find-UiElementById $root 'PageTitle').Current.Name -eq 'Log and reports' } 10)) {
+            throw 'The completed backup did not navigate to Reports.'
+        }
+        Write-Host 'GUI backup passed: picker cancellation, a real folder selection, one selected public certificate, licenses, JSON, text report, and log.'
+    }
+    Write-Host "UI smoke passed: launch, responsive resize, Dark/Light/System, all seven pages, empty reports, checkbox accessibility, RU/EN, and home shortcuts. Artifacts: $ArtifactsDirectory"
 } finally {
     if (-not $process.HasExited) {
         $process.CloseMainWindow() | Out-Null
         if (-not $process.WaitForExit(15000)) { Stop-Process -Id $process.Id -Force }
+    }
+    foreach ($job in $pickerInvokeJobs) {
+        if ($job.State -eq 'Running') { Stop-Job $job }
+        Remove-Job $job
+    }
+    if ($backupTestRoot -and (Test-Path -LiteralPath $backupTestRoot)) {
+        $resolvedTest = [IO.Path]::GetFullPath($backupTestRoot)
+        $expectedPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\CpcUiBackup-'
+        if (-not $resolvedTest.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe backup-test cleanup path.' }
+        Remove-Item -LiteralPath $resolvedTest -Recurse -Force
     }
     if (-not $settingsExisted) {
         if (Test-Path -LiteralPath $settingsPath) { Remove-Item -LiteralPath $settingsPath -Force }

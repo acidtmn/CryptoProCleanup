@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:CryptoProCleanupModern">
 
-    <Grid x:Name="WindowRoot" Background="{ThemeResource AppBackgroundBrush}" MinWidth="900" MinHeight="650" SizeChanged="WindowRoot_SizeChanged">
+    <Grid x:Name="WindowRoot" Background="{ThemeResource AppBackgroundBrush}" MinWidth="760" MinHeight="480" SizeChanged="WindowRoot_SizeChanged">
         <NavigationView x:Name="Navigation"
                         Background="{ThemeResource NavigationBackgroundBrush}"
                         OpenPaneLength="248"
@@ -15,8 +15,9 @@
                         IsSettingsVisible="False"
                         AlwaysShowHeader="False"
                         PaneDisplayMode="Left"
-                        SelectionFollowsFocus="Enabled"
-                        ItemInvoked="Navigation_ItemInvoked">
+                        SelectionFollowsFocus="Disabled"
+                        ItemInvoked="Navigation_ItemInvoked"
+                        SelectionChanged="Navigation_SelectionChanged">
             <NavigationView.PaneHeader>
                 <Grid>
                     <StackPanel x:Name="PaneHeaderPanel" Margin="10,18,10,22" Orientation="Horizontal" Spacing="12">
@@ -25,7 +26,7 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock x:Name="BrandTitle" Text="КриптоПро&#x0a;Очистка" FontSize="16" FontWeight="SemiBold" LineHeight="16"/>
-                            <TextBlock Text="NATIVE UTILITY" FontSize="9" CharacterSpacing="170" Foreground="{ThemeResource SecondaryTextBrush}" Margin="0,4,0,0"/>
+                            <TextBlock Text="CLEANUP / LOCAL" FontSize="9" CharacterSpacing="170" Foreground="{ThemeResource SecondaryTextBrush}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -33,6 +34,7 @@
 
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="NavOverview" Content="Обзор" Tag="overview" Icon="Home" Background="{ThemeResource NavigationBackgroundBrush}" Foreground="{ThemeResource PrimaryTextBrush}"/>
+                <NavigationViewItem x:Name="NavCleanup" Content="Удаление" Tag="cleanup" Icon="Delete" Background="{ThemeResource NavigationBackgroundBrush}" Foreground="{ThemeResource PrimaryTextBrush}"/>
                 <NavigationViewItem x:Name="NavCertificates" Content="Открытые сертификаты" Tag="certificates" Icon="ContactInfo" Background="{ThemeResource NavigationBackgroundBrush}" Foreground="{ThemeResource PrimaryTextBrush}"/>
                 <NavigationViewItem x:Name="NavOffline" Content="Офлайн-Windows" Tag="offline" Icon="OpenFile" Background="{ThemeResource NavigationBackgroundBrush}" Foreground="{ThemeResource PrimaryTextBrush}"/>
                 <NavigationViewItem x:Name="NavReports" Content="Журнал и отчёты" Tag="reports" Icon="Document" Background="{ThemeResource NavigationBackgroundBrush}" Foreground="{ThemeResource PrimaryTextBrush}"/>
@@ -103,22 +105,72 @@
                 </Grid>
 
                 <Grid Grid.Row="1">
-                    <!-- OVERVIEW -->
-                    <ScrollViewer x:Name="OverviewPage" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="30,0,30,24" Spacing="14">
-                            <Border Style="{StaticResource ContentCardStyle}" BorderBrush="{ThemeResource AccentBorderBrush}">
-                                <StackPanel Spacing="12">
-                                    <TextBlock x:Name="StartTitle" Text="Что вы хотите сделать?" Style="{StaticResource SectionTitleStyle}"/>
-                                    <TextBlock x:Name="StartHint" Style="{StaticResource MutedTextStyle}" Text="Сохраните данные перед переустановкой или подготовьте удаление ниже."/>
-                                    <ItemsControl>
-                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="236"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                        <Button x:Name="SaveDataButton" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButtonStyle}" Click="SaveData_Click"><TextBlock x:Name="SaveDataText" Text="Сохранить данные" Style="{StaticResource ButtonLabelStyle}"/></Button>
-                                        <Button x:Name="GoCertificatesButton" Tag="certificates" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource RoundedButtonStyle}" Click="CompactNavigation_Click"><TextBlock x:Name="GoCertificatesText" Text="Выбрать сертификаты" Style="{StaticResource ButtonLabelStyle}"/></Button>
-                                        <Button x:Name="GoOfflineButton" Tag="offline" Margin="0,0,8,8" HorizontalAlignment="Stretch" Style="{StaticResource RoundedButtonStyle}" Click="CompactNavigation_Click"><TextBlock x:Name="GoOfflineText" Text="Данные с другого диска" Style="{StaticResource ButtonLabelStyle}"/></Button>
-                                    </ItemsControl>
-                                    <TextBlock x:Name="SaveDataHint" Style="{StaticResource MutedTextStyle}" FontSize="12" Text="Сохраняются полные лицензии, выбранные открытые сертификаты и отчёт. Удаление не запускается."/>
-                                </StackPanel>
+
+                    <ScrollViewer x:Name="HomePage" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="30,0,30,24" Spacing="20">
+                            <Border x:Name="HomeHero" Style="{StaticResource HeroCardStyle}">
+                                <Grid ColumnSpacing="24">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="180"/></Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="12" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="6" Height="6" Fill="{ThemeResource AccentBrush}"/>
+                                            <TextBlock x:Name="HeroEyebrow" Text="ЛОКАЛЬНО · ПОД ТВОИМ КОНТРОЛЕМ" Foreground="{ThemeResource AccentBrush}" FontSize="10" CharacterSpacing="160"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="StartTitle" Text="Новый старт для CryptoPro." FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" LineHeight="38"/>
+                                        <TextBlock x:Name="StartHint" Text="Сохрани важное. Удали лишнее. Всё в одном месте." Style="{StaticResource MutedTextStyle}" FontSize="14"/>
+                                        <Button x:Name="HomeLicensesButton" HorizontalAlignment="Left" Style="{StaticResource RoundedButtonStyle}" Click="ShowLicenses_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8D7;" FontSize="14"/><TextBlock x:Name="HomeLicensesText" Text="Посмотреть лицензии"/></StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                    <Grid x:Name="HeroArtwork" Grid.Column="1" Width="180" Height="166" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                                        <Ellipse Width="164" Height="164" Stroke="{ThemeResource AccentBorderBrush}" StrokeThickness="1" Opacity="0.4"/>
+                                        <Ellipse Width="120" Height="120" Stroke="{ThemeResource AccentBrush}" StrokeThickness="1" Opacity="0.24"/>
+                                        <Border Width="86" Height="98" CornerRadius="26" Background="{ThemeResource AccentSubtleBrush}" BorderBrush="{ThemeResource AccentBorderBrush}" BorderThickness="1" Rotation="12"/>
+                                        <FontIcon Glyph="&#xE72E;" FontSize="44" Foreground="{ThemeResource AccentBrush}"/>
+                                        <Border Width="25" Height="25" CornerRadius="8" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,22,12,0" Background="{ThemeResource SuccessSurfaceBrush}" BorderBrush="{ThemeResource SuccessBorderBrush}" BorderThickness="1">
+                                            <FontIcon Glyph="&#xE73E;" FontSize="11" Foreground="{ThemeResource SuccessBrush}"/>
+                                        </Border>
+                                        <Ellipse Width="7" Height="7" Fill="{ThemeResource AccentBrush}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="18,0,0,16"/>
+                                    </Grid>
+                                </Grid>
                             </Border>
+                            <TextBlock x:Name="HomeTasksTitle" Text="Что нужно сделать?" Style="{StaticResource SectionTitleStyle}"/>
+                            <Grid x:Name="HomeTasksGrid" ColumnSpacing="14" RowSpacing="14">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <Button x:Name="SaveDataButton" Style="{StaticResource TaskCardButtonStyle}" Click="SaveData_Click" AutomationProperties.Name="Сохранить данные">
+                                    <Grid MinHeight="174" RowSpacing="12">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Width="40" Height="40" HorizontalAlignment="Left" CornerRadius="12" Background="{ThemeResource SuccessSurfaceBrush}"><FontIcon Glyph="&#xE74E;" FontSize="21" Foreground="{ThemeResource SuccessBrush}"/></Border>
+                                        <TextBlock x:Name="SaveDataText" Grid.Row="1" Text="Сохранить данные" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="SaveDataHint" Grid.Row="2" Text="Лицензии и открытые сертификаты перед переустановкой." Style="{StaticResource MutedTextStyle}" FontSize="12"/>
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"><TextBlock x:Name="SaveDataAction" Text="Создать копию" FontSize="12" Foreground="{ThemeResource AccentBrush}"/><FontIcon Glyph="&#xE72A;" FontSize="12" Foreground="{ThemeResource AccentBrush}"/></StackPanel>
+                                    </Grid>
+                                </Button>
+                                <Button x:Name="GoCleanupButton" Grid.Column="1" Tag="cleanup" Style="{StaticResource TaskCardButtonStyle}" Click="CompactNavigation_Click" AutomationProperties.Name="Удалить программы">
+                                    <Grid MinHeight="174" RowSpacing="12">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Width="40" Height="40" HorizontalAlignment="Left" CornerRadius="12" Background="{ThemeResource AccentSubtleBrush}"><FontIcon Glyph="&#xE74D;" FontSize="21" Foreground="{ThemeResource AccentBrush}"/></Border>
+                                        <TextBlock x:Name="GoCleanupText" Grid.Row="1" Text="Удалить программы" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="GoCleanupHint" Grid.Row="2" Text="Продукты CryptoPro и проверенные остатки после удаления." Style="{StaticResource MutedTextStyle}" FontSize="12"/>
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"><TextBlock x:Name="GoCleanupAction" Text="Выбрать программы" FontSize="12" Foreground="{ThemeResource AccentBrush}"/><FontIcon Glyph="&#xE72A;" FontSize="12" Foreground="{ThemeResource AccentBrush}"/></StackPanel>
+                                    </Grid>
+                                </Button>
+                                <Button x:Name="GoOfflineButton" Grid.Column="2" Tag="offline" Style="{StaticResource TaskCardButtonStyle}" Click="CompactNavigation_Click" AutomationProperties.Name="Другой диск">
+                                    <Grid MinHeight="174" RowSpacing="12">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Width="40" Height="40" HorizontalAlignment="Left" CornerRadius="12" Background="{ThemeResource BadgeNeutralBackgroundBrush}"><FontIcon Glyph="&#xEDA2;" FontSize="21" Foreground="{ThemeResource BadgeNeutralForegroundBrush}"/></Border>
+                                        <TextBlock x:Name="GoOfflineText" Grid.Row="1" Text="Другой диск" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="GoOfflineHint" Grid.Row="2" Text="Извлеки данные из Windows на подключённом накопителе." Style="{StaticResource MutedTextStyle}" FontSize="12"/>
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"><TextBlock x:Name="GoOfflineAction" Text="Выбрать диск" FontSize="12" Foreground="{ThemeResource AccentBrush}"/><FontIcon Glyph="&#xE72A;" FontSize="12" Foreground="{ThemeResource AccentBrush}"/></StackPanel>
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="HomeInventoryTitle" Text="Найдено на этом компьютере" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                <Button x:Name="GoCertificatesButton" Grid.Column="1" Tag="certificates" Style="{StaticResource RoundedButtonStyle}" Click="CompactNavigation_Click"><TextBlock x:Name="GoCertificatesText" Text="Открыть сертификаты"/></Button>
+                            </Grid>
                             <Grid x:Name="OverviewStatsGrid" ColumnSpacing="12" RowSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
@@ -137,7 +189,18 @@
                                     <StackPanel Spacing="5"><TextBlock x:Name="RiskStatCaption" Text="ВЫСОКИЙ РИСК" FontSize="10" Foreground="{ThemeResource SecondaryTextBrush}"/><TextBlock x:Name="RiskStat" Text="—" FontSize="30" FontWeight="SemiBold"/><TextBlock x:Name="RiskStatHint" Text="критичные продукты" Style="{StaticResource MutedTextStyle}" FontSize="10"/></StackPanel>
                                 </Border>
                             </Grid>
+                            <Border Style="{StaticResource CalloutCardStyle}">
+                                <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource SecondaryTextBrush}"/>
+                                    <TextBlock x:Name="HomeFooterHint" Grid.Column="1" Text="Копия сертификата содержит открытую часть. Для подписи также нужен закрытый ключ." Style="{StaticResource MutedTextStyle}" FontSize="12"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
 
+                    <!-- Удаление программ. -->
+                    <ScrollViewer x:Name="OverviewPage" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="30,0,30,24" Spacing="14">
                             <Grid x:Name="OverviewContentGrid" ColumnSpacing="14" RowSpacing="14">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="2.2*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -220,7 +283,7 @@
                                             <ItemsControl x:Name="CertificateBulkActions" Grid.Row="1" Grid.ColumnSpan="3"><ItemsControl.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="250" ItemHeight="50"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ComboBox x:Name="CertificateValidityFilter" MinWidth="180" Margin="0,0,8,8" SelectedIndex="0" SelectionChanged="CertificateFilter_Changed"><ComboBoxItem Content="Любой статус"/></ComboBox><ComboBox x:Name="CertificateSort" MinWidth="180" Margin="0,0,8,8" SelectedIndex="0" SelectionChanged="CertificateFilter_Changed"><ComboBoxItem Content="Сначала владелец"/><ComboBoxItem Content="Сначала срок"/><ComboBoxItem Content="Сначала профиль"/></ComboBox><Button x:Name="SelectFilteredCertificatesButton" MinWidth="232" Margin="0,0,8,8" Style="{StaticResource RoundedButtonStyle}" Click="SelectFilteredCertificates_Click"><TextBlock x:Name="SelectFilteredCertificatesText" Style="{StaticResource ButtonLabelStyle}" Text="Выбрать отфильтрованные"/></Button><Button x:Name="DeselectFilteredCertificatesButton" MinWidth="232" Margin="0,0,8,8" Style="{StaticResource RoundedButtonStyle}" Click="DeselectAllCertificates_Click"><TextBlock x:Name="DeselectAllCertificatesText" Style="{StaticResource ButtonLabelStyle}" Text="Снять выбор с отфильтрованных"/></Button></ItemsControl>
                                         </Grid>
                                         <Grid Grid.Row="1" Padding="14,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="430"/></Grid.RowDefinitions><Grid Margin="4,10" ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions><TextBlock x:Name="CertSubjectColumn" Text="КОМУ ВЫДАН" FontSize="9" Foreground="{ThemeResource SecondaryTextBrush}"/><TextBlock x:Name="CertProfileColumn" Grid.Column="1" Text="ПРОФИЛЬ" FontSize="9" Foreground="{ThemeResource SecondaryTextBrush}"/><TextBlock x:Name="CertValidColumn" Grid.Column="2" Text="ДЕЙСТВУЕТ ПО" FontSize="9" Foreground="{ThemeResource SecondaryTextBrush}"/><TextBlock x:Name="CertKeyColumn" Grid.Column="3" Text="КЛЮЧ" FontSize="9" Foreground="{ThemeResource SecondaryTextBrush}"/></Grid><ListView x:Name="CertificatesPanel" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="False" ScrollViewer.VerticalScrollBarVisibility="Auto"><ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel AreStickyGroupHeadersEnabled="False"/></ItemsPanelTemplate></ListView.ItemsPanel></ListView></Grid>
-                                        <Grid Grid.Row="2" Padding="{StaticResource TableFooterPadding}" Background="{ThemeResource SurfaceRaisedBrush}"><TextBlock x:Name="CertificateSelectedCount" Text="Выбрано: 0 сертификатов" VerticalAlignment="Center"/><Button x:Name="ExportCertificatesButton" HorizontalAlignment="Right" Style="{StaticResource PrimaryButtonStyle}" Click="ExportCertificates_Click"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE896;"/><TextBlock x:Name="ExportCertificatesText" Style="{StaticResource ButtonLabelStyle}" Text="Экспортировать выбранные"/></StackPanel></Button></Grid>
+
                                     </Grid>
                                 </Border>
                                 <Border x:Name="CertificateDetailsCard" Grid.Column="1" Style="{StaticResource ContentCardStyle}" AutomationProperties.Name="Выбранный сертификат">
@@ -310,6 +373,17 @@
                     </ScrollViewer>
                 </Grid>
 
+
+                <Border x:Name="CertificateExportBar" Grid.Row="2" Visibility="Collapsed" Background="{ThemeResource SurfaceRaisedBrush}" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CertificateSelectedCount" Text="Выбрано: 0 сертификатов" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button x:Name="ExportCertificatesButton" Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Click="ExportCertificates_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE896;"/><TextBlock x:Name="ExportCertificatesText" Style="{StaticResource ButtonLabelStyle}" Text="Экспортировать выбранные"/></StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+
                 <Border x:Name="NextStepBar" Grid.Row="2" Background="{ThemeResource SurfaceRaisedBrush}" BorderBrush="{ThemeResource SubtleBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14">
                     <Grid ColumnSpacing="18">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -325,7 +399,7 @@
 
         <Grid x:Name="CompactRail"
               Width="88"
-              Margin="4,78,0,8"
+              Margin="4,20,0,8"
               HorizontalAlignment="Left"
               VerticalAlignment="Stretch"
               Visibility="Collapsed"
@@ -337,6 +411,7 @@
             </Grid.RowDefinitions>
             <StackPanel Spacing="4">
                 <Button x:Name="CompactOverview" Style="{StaticResource CompactNavigationButtonStyle}" Tag="overview" AutomationProperties.Name="Обзор" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Home"/><TextBlock x:Name="CompactOverviewText" Text="Главная" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
+                <Button x:Name="CompactCleanup" Style="{StaticResource CompactNavigationButtonStyle}" Tag="cleanup" AutomationProperties.Name="Удаление" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Delete"/><TextBlock x:Name="CompactCleanupText" Text="Удаление" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
                 <Button x:Name="CompactCertificates" Style="{StaticResource CompactNavigationButtonStyle}" Tag="certificates" AutomationProperties.Name="Открытые сертификаты" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="ContactInfo"/><TextBlock x:Name="CompactCertificatesText" Text="Сертификаты" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
                 <Button x:Name="CompactOffline" Style="{StaticResource CompactNavigationButtonStyle}" Tag="offline" AutomationProperties.Name="Офлайн-Windows" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="OpenFile"/><TextBlock x:Name="CompactOfflineText" Text="Другой диск" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>
                 <Button x:Name="CompactReports" Style="{StaticResource CompactNavigationButtonStyle}" Tag="reports" AutomationProperties.Name="Журнал и отчёты" Click="CompactNavigation_Click"><StackPanel Spacing="6"><SymbolIcon Symbol="Document"/><TextBlock x:Name="CompactReportsText" Text="Отчёты" FontSize="10" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Button>

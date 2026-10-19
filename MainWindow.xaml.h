@@ -16,6 +16,8 @@ namespace winrt::CryptoProCleanupModern::implementation
 
         void Navigation_ItemInvoked(Microsoft::UI::Xaml::Controls::NavigationView const&,
                                     Microsoft::UI::Xaml::Controls::NavigationViewItemInvokedEventArgs const& args);
+        void Navigation_SelectionChanged(Microsoft::UI::Xaml::Controls::NavigationView const&,
+                                         Microsoft::UI::Xaml::Controls::NavigationViewSelectionChangedEventArgs const& args);
         void CompactNavigation_Click(winrt::Windows::Foundation::IInspectable const& sender,
                                      Microsoft::UI::Xaml::RoutedEventArgs const&);
         void LanguageCombo_SelectionChanged(winrt::Windows::Foundation::IInspectable const&,
@@ -196,7 +198,7 @@ namespace winrt::CryptoProCleanupModern::implementation
         winrt::fire_and_forget ShowRemovalConfirmation();
         winrt::fire_and_forget ExecuteRemoval();
         winrt::fire_and_forget ShowMessage(std::wstring const& title, std::wstring const& message);
-        winrt::Windows::Foundation::IAsyncAction PickFolder(std::function<void(std::wstring const&)> completed);
+        std::wstring PickDirectory();
         void OpenUrl(wchar_t const* url);
         void CopyText(std::wstring const& value);
         std::wstring ExecutablePath() const;

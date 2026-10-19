@@ -142,7 +142,7 @@ int wmain(int argc, wchar_t** argv) {
     Expect(FromUtf8(Utf8(unicode)) == unicode, "UTF-8 round trip");
 
     UiOperationGate operationGate;
-    Expect(std::wstring(kVersion) == L"0.6.0-preview1", "Central preview version");
+    Expect(std::wstring(kVersion) == L"0.7.0", "Central version");
     Expect(NormalizeThemeMode(0) == ThemeMode::Dark &&
            NormalizeThemeMode(1) == ThemeMode::System &&
            NormalizeThemeMode(2) == ThemeMode::Light,
